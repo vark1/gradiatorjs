@@ -1,3 +1,5 @@
+import {Tensor} from './tensor'
+
 interface Value {
     data: number;
     label: string;
