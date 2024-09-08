@@ -9,13 +9,15 @@ export class Tensor<T extends number[]>{
     shape: T;   // number[]
     size: number;
     grad?: NDarr<T>;
+    op?: string;
 
-    constructor(data: NDarr<T>, shape:T, label: string){
+    constructor(data: NDarr<T>, shape:T, label: string, op: string = ""){
         this.data = data
         this.shape = shape
         this.label = label
         this.size = this.calculateSizeFromShape(shape)
         this.grad = this.initializeGrad(shape)
+        this.op = op
     }
 
     private calculateSizeFromShape(shape: T): number {
@@ -42,5 +44,9 @@ export class Tensor<T extends number[]>{
             arr.push(this.createArray(tail as any, value));
         }
         return arr as NDarr<T>;
+    }
+
+    get rank() : number {
+        return this.shape.length
     }
 }
