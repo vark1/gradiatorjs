@@ -16,19 +16,21 @@ export function addNDarrays<T extends number[]>(tensor1: NDarr<T>, tensor2: NDar
     }
 }
 
-export function mul_<T extends number[]>(t: NDarr<T>, num: number): NDarr<T> {
+// This is a recursive function which will take the operation type (like * for multiply, ** for power, exp for exponent etc)
+// and will return with the operation applied on the input ND array.
+export function ophelper_<T extends number[]>(t: NDarr<T>, op_type: string, num?: number): NDarr<T> {
     if(Array.isArray(t)) {
-        return t.map((val)=> mul_(val as unknown as NDarr<T>, num)) as unknown as NDarr<T>;
+        return t.map((val)=> ophelper_(val as unknown as NDarr<T>, op_type, num)) as unknown as NDarr<T>;
     }else {
-        return (t * num) as unknown as NDarr<T>;
-    }
-}
-
-export function pow_<T extends number[]>(t: NDarr<T>, num: number): NDarr<T> {
-    if(Array.isArray(t)) {
-        return t.map((val)=> mul_(val as unknown as NDarr<T>, num)) as unknown as NDarr<T>;
-    }else {
-        return (t ** num) as unknown as NDarr<T>;
+        if (op_type === '*') {
+            return (t * num) as unknown as NDarr<T>;
+        } else if (op_type === '**') {
+            return (t ** num) as unknown as NDarr<T>;
+        } else if (op_type === 'exp') {
+            return (Math.exp(t)) as unknown as NDarr<T>;
+        } else if (op_type === 'tanh') {
+            return ((Math.exp(2*t) - 1)/(Math.exp(2*t) + 1)) as unknown as NDarr<T>;
+        }
     }
 }
 

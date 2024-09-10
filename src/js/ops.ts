@@ -4,35 +4,31 @@ import * as utils from './utils';
 
 // Scalar ops (1 tensor and 1 scalar)
 export function mul<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
-    const data = utils.mul_(t.data, num)
+    const data = utils.ophelper_(t.data, '*', num)
     return new Tensor(data, t.shape, `${num}*(${t.label})`)
 }
 
 export function pow<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
-    const data = utils.pow_(t.data, num)
+    const data = utils.ophelper_(t.data, '**', num)
     return new Tensor(data, t.shape, `(${t.label})^${num}`)
 }
 
-
 //unary ops
 export function negate<T extends number[]>(t: Tensor<T>) : Tensor<T> {
-    const data = utils.mul_(t.data, -1)
+    const data = utils.ophelper_(t.data, '*', -1)
     return new Tensor(data, t.shape, `(-${t.label})`)
 }
 
 //unary functions
-// export function exp<T extends number[]>(t: Tensor<T>) : Tensor<T> {
-//     const data = utils.mul_(t.data, )
-//     return new Tensor(n)
-// }
+export function exp<T extends number[]>(t: Tensor<T>) : Tensor<T> {
+    const data = utils.ophelper_(t.data, 'exp')
+    return new Tensor(data, t.shape, `e^(${t.label})`)
+}
 
-// export function tanh<T extends number[]>(t: Tensor<T>) : Tensor<T> {
-//     let x = t.data
-//     let t = (Math.exp(2*x) - 1)/(Math.exp(2*x) + 1)
-
-// }
-
-
+export function tanh<T extends number[]>(t: Tensor<T>) : Tensor<T> {
+    const data = utils.ophelper_(t.data, 'tanh')
+    return new Tensor(data, t.shape, `tanh(${t.label})`)
+}
 
 //binary ops/functions
 
