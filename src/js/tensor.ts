@@ -10,14 +10,18 @@ export class Tensor<T extends number[]>{
     size: number;
     grad?: NDarr<T>;
     op?: string;
+    _prev: Tensor<T>[] = [];
+    _backward: Function
 
-    constructor(data: NDarr<T>, shape:number[], label: string, op: string = ""){
+    constructor(data: NDarr<T>, shape:number[], label: string, op: string = "", prev: Tensor<T>[] = []){
         this.data = data
         this.shape = shape
         this.label = label
         this.size = this.calculateSizeFromShape(shape)
         this.grad = this.initializeGrad(shape)
         this.op = op
+        this._prev = prev
+        this._backward = function(): void {}
     }
 
     private calculateSizeFromShape(shape: number[]): number {
@@ -58,5 +62,24 @@ export class Tensor<T extends number[]>{
 
     get rank() : number {
         return this.shape.length
+    }
+
+    public backpropagation() {
+        let topo: Tensor<T>[] = []
+        let visited = new Set<Tensor<T>>()
+        function build_topo(v : Tensor<T>) {
+            if (!visited.has(v)) {
+                visited.add(v)
+                for (let child of v._prev) {
+                    build_topo(child)
+                }
+                topo.push(v)
+            }
+        }
+        build_topo(this)
+        this.grad = this.createArray(this.shape, 1.0 as any)
+        for (let node of topo.toReversed()) {
+            node._backward()
+        }
     }
 }

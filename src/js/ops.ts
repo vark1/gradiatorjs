@@ -1,27 +1,13 @@
 import { Tensor } from './tensor';
-import { NDarr } from './types';
+import { NDarr, t_any } from './types';
 import * as utils from './utils';
 
 
 // Scalar ops (tensor with a scalar)
-export function sAdd<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
-    const data = utils.ophelper_(t.data, '+', num)
-    return new Tensor(data, t.shape, `${num}+(${t.label})`, '+')
-}
-
-export function sMul<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
-    const data = utils.ophelper_(t.data, '*', num)
-    return new Tensor(data, t.shape, `${num}*(${t.label})`, '*')
-}
 
 export function pow<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
     const data = utils.ophelper_(t.data, '**', num)
     return new Tensor(data, t.shape, `(${t.label})^${num}`, '**')
-}
-
-export function sSub<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
-    const data = utils.ophelper_(t.data, '-', num)
-    return new Tensor(data, t.shape, `(${t.label})-${num}`, '-')
 }
 
 export function sDiv<T extends number[]>(t: Tensor<T>, num: number) : Tensor<T> {
@@ -47,15 +33,18 @@ export function tanh<T extends number[]>(t: Tensor<T>) : Tensor<T> {
 }
 
 //binary ops
-export function add<T extends number[]>(t1: Tensor<T>, t2: Tensor<T>) : Tensor<T> {
+export function add<T extends number[]>(t1: t_any<T>, t2: t_any<T>) : Tensor<T> {
+    [t1, t2] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1.rank === t2.rank, ()=> `In addition: Both tensors must have the same rank. got t1 rank: ${t1.rank} and t2 rank: ${t2.rank}`)
     utils.assert(t1.shape.every((dimension, index) => dimension == t2.shape[index]), () => 'In addition: Both tensors must have the same shape')
 
-    let additionResult = utils.addNDarrays(t1.data, t2.data)
-    return new Tensor(additionResult, t1.shape, `${t1.label} + ${t2.label}`, '+')
+    let additionResult = utils.addNDarrays(t1.data, t2.data)    
+    let out = new Tensor(additionResult, t1.shape, `${t1.label} + ${t2.label}`, '+', [t1, t2])
+    return out
 }
 
-export function subtract<T extends number[]>(t1: Tensor<T>, t2: Tensor<T>) : Tensor<T> {
+export function subtract<T extends number[]>(t1: t_any<T>, t2: t_any<T>) : Tensor<T> {
+    [t1, t2] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1.rank === t2.rank, ()=> `In subtraction: Both tensors must have the same rank. got t1 rank: ${t1.rank} and t2 rank: ${t2.rank}`)
     utils.assert(t1.shape.every((dimension, index) => dimension == t2.shape[index]), () => 'In subtraction: Both tensors must have the same shape')
 
@@ -128,9 +117,14 @@ export function dot<T extends number[]>(t1: Tensor<T>, t2: Tensor<T>) : Tensor<T
 }
 
 export function multiply<T extends number[]>(t1: Tensor<T>, t2: Tensor<T>) : Tensor<T> {
+    [t1, t2] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1.rank === t2.rank, ()=> `In hadamard product: Both tensors must have the same rank. got t1 rank: ${t1.rank} and t2 rank: ${t2.rank}`)
     utils.assert(t1.shape.every((dimension, index) => dimension == t2.shape[index]), () => 'In hadamard product: Both tensors must have the same shape')
 
     const result = utils.hadamardNDarrays(t1.data, t2.data)
     return new Tensor(result, t1.shape, `${t1.label} # ${t2.label}`, 'element wise multiplication')
+}
+
+export function backprop<T extends number[]>(t: Tensor<T>) {
+    
 }
