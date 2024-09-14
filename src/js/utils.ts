@@ -7,13 +7,13 @@ export function assert(expr: boolean, msg: () => string) {
     }
 }
 
-export function addNDarrays<T extends number[]>(tensor1: NDarr<T>, tensor2: NDarr<T>): NDarr<T> {
-    if (Array.isArray(tensor1) && Array.isArray(tensor2)) {
-        return tensor1.map((val, idx) => this.addNDarrays(val, tensor2[idx])) as NDarr<T>;
+export function addNDarrays<T extends number[]>(arr1: NDarr<T>, arr2: NDarr<T>): NDarr<T> {
+    if (Array.isArray(arr1) && Array.isArray(arr2)) {
+        return arr1.map((val, idx) => this.addNDarrays(val, arr2[idx])) as NDarr<T>;
     } else {
         // Base case: both are numbers, so return their sum
-        // `<number><unknown>tensor1` is same as `tensor1 as unknown as number`
-        return (<number><unknown>tensor1) + (<number><unknown>tensor2) as unknown as NDarr<T>;
+        // `<number><unknown>arr1` is same as `arr1 as unknown as number`
+        return (<number><unknown>arr1) + (<number><unknown>arr2) as unknown as NDarr<T>;
     }
 }
 
@@ -43,32 +43,13 @@ export function ophelper_<T extends number[]>(t: NDarr<T>, op_type: string, num?
     }
 }
 
-// Function to calculate the shape of an NDarr
-export function calculateShape(arr: number[] | NDarr<any>): number[] {
-    // Base case: if it's a flat array (not an array of arrays), return an empty shape
-    if (!Array.isArray(arr) || arr.length === 0 || typeof arr[0] !== 'object') {
-        return [];
-    }
-
-    // Recursive case: determine the shape of the nested array
-    const shape: number[] = [];
-    let currentLevel: any[] = arr;
-    
-    while (Array.isArray(currentLevel) && currentLevel.length > 0) {
-        shape.push(currentLevel.length);
-        currentLevel = currentLevel[0];
-    }
-    
-    return shape;
-}
-
 export function convertToTensor<T extends number[]>(t: t_any<T>) : Tensor<T> {
     if (t instanceof Tensor) {
         return t
     } else if (typeof t === 'number') {
-        return new Tensor([t] as NDarr<T>, [1], '')
+        return new Tensor([t] as NDarr<T>, '')
     } else if (Array.isArray(t)) {
-        return new Tensor(t, calculateShape(t), '')
+        return new Tensor(t, '')
     } else {
         throw new Error("Unsupported input type for convertToTensor");
     }
