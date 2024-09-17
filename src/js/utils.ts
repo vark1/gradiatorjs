@@ -1,5 +1,5 @@
-import { NDarr, t_any } from './types'
-import { Tensor} from './tensor';
+import { NDArray } from './types'
+import { Tensor } from './tensor';
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {
@@ -7,60 +7,58 @@ export function assert(expr: boolean, msg: () => string) {
     }
 }
 
-export function addNDarrays<T extends number[]>(arr1: NDarr<T>, arr2: NDarr<T>): NDarr<T> {
+export function addNDarrays(arr1: NDArray, arr2: NDArray): NDArray {
     if (Array.isArray(arr1) && Array.isArray(arr2)) {
-        return arr1.map((val, idx) => this.addNDarrays(val, arr2[idx])) as NDarr<T>;
+        return arr1.map((val, idx) => this.addNDarrays(val, arr2[idx]));
     } else {
         // Base case: both are numbers, so return their sum
-        // `<number><unknown>arr1` is same as `arr1 as unknown as number`
-        return (<number><unknown>arr1) + (<number><unknown>arr2) as unknown as NDarr<T>;
+        return (<number>arr1) + (<number>arr2);
     }
 }
 
-export function hadamardNDarrays<T extends number[]>(arr1: NDarr<T>, arr2: NDarr<T>): NDarr<T> {
+export function hadamardNDarrays(arr1: NDArray, arr2: NDArray): NDArray {
     if (Array.isArray(arr1) && Array.isArray(arr2)) {
-        return arr1.map((val, idx) => this.hadamardNDarrays(val, arr2[idx])) as NDarr<T>;
+        return arr1.map((val, idx) => this.hadamardNDarrays(val, arr2[idx]));
     } else {
-        return (<number><unknown>arr1) * (<number><unknown>arr2) as unknown as NDarr<T>;
+        return (<number>arr1) * (<number>arr2);
     }
 }
 
 // This is a recursive function which will take the operation type (like * for multiply, ** for power, exp for exponent etc)
 // and will return with the operation applied on the input ND array.
-export function ophelper_<T extends number[]>(t: NDarr<T>, op_type: string, num?: number): NDarr<T> {
+export function ophelper_(t: NDArray, op_type: string, num?: number): NDArray {
     if(Array.isArray(t)) {
-        return t.map((val)=> ophelper_(val as unknown as NDarr<T>, op_type, num)) as unknown as NDarr<T>;
+        return t.map((val)=> ophelper_(val, op_type, num));
     }else {
         if (op_type === '**') {
-            return (t ** num) as unknown as NDarr<T>;
+            return (t ** num);
         } else if (op_type === 'exp') {
-            return (Math.exp(t)) as unknown as NDarr<T>;
+            return (Math.exp(t));
         } else if (op_type === 'tanh') {
-            return ((Math.exp(2*t) - 1)/(Math.exp(2*t) + 1)) as unknown as NDarr<T>;
+            return ((Math.exp(2*t) - 1)/(Math.exp(2*t) + 1));
         } else if (op_type === '/') {
-            return (t / num) as unknown as NDarr<T>;
+            return (t / num);
         }
     }
 }
 
-export function convertToTensor<T extends number[]>(t: t_any<T>) : Tensor<T> {
+export function convertToTensor(t: NDArray | Tensor) : Tensor {
     if (t instanceof Tensor) {
         return t
-    } else if (typeof t === 'number') {
-        return new Tensor([t] as NDarr<T>, '')
-    } else if (Array.isArray(t)) {
+    } else if (typeof t === 'number' || Array.isArray(t)) {
         return new Tensor(t, '')
     } else {
         throw new Error("Unsupported input type for convertToTensor");
     }
 }
 
-export function broadcastAndConvertNum<T extends number[]>(t1: t_any<T>, t2: t_any<T>) : [Tensor<T>, Tensor<T>] {
-    if (typeof t1 === 'number' && t2 instanceof Tensor) {
+export function broadcastAndConvertNum(t1: NDArray | Tensor, t2: NDArray | Tensor) : [Tensor, Tensor] {
+    //rank check to make sure we're only broadcasting when the other tensor is not a scalar tensor aswell
+    if (typeof t1 === 'number' && t2 instanceof Tensor && t2.rank !== 0) {
         t1 = convertToTensor(t1)
         t1.data = createArray(t2.shape, t1.data[0])
         t1.shape = t2.shape
-    } else if (typeof t2 === 'number' && t1 instanceof Tensor) {
+    } else if (typeof t2 === 'number' && t1 instanceof Tensor && t1.rank !== 0) {
         t2 = convertToTensor(t2)
         t2.data = createArray(t1.shape, t2.data[0])
         t2.shape = t1.shape
@@ -70,7 +68,7 @@ export function broadcastAndConvertNum<T extends number[]>(t1: t_any<T>, t2: t_a
     return [t1, t2]
 }
 
-export function createArray<T extends number[]>(shape: number[], value: number, randomfn?: () => number) : NDarr<T> {
+export function createArray(shape: number[], value: number, randomfn?: () => number) : NDArray {
     // Recursively create an array with the given shape and fill with the given value
     if (shape.length === 0) return (randomfn? randomfn() : value) as any;
 
@@ -79,5 +77,5 @@ export function createArray<T extends number[]>(shape: number[], value: number, 
     for (let i=0; i<head; i++) {
         arr.push(this.createArray(tail as any, value, randomfn));
     }
-    return arr as NDarr<T>;
+    return arr;
 }

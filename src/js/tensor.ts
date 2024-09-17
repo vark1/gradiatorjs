@@ -1,20 +1,19 @@
-import {NDarr} from './types'
-import * as utils from './utils'
+import {NDArray} from './types'
 /*
 Tensor is the basic building block of all data in the neural net. You can 
 use it to create scalar values, or use it to create 3D volumes of numbers.
 */
-export class Tensor<T extends number[]>{
+export class Tensor{
+    data: NDArray;
     label: string;
-    data: NDarr<T>;
     shape: number[];
     size: number;
-    grad?: NDarr<T>;
+    grad?: NDArray;
     op?: string;
-    _prev: Tensor<T>[] = [];
+    _prev: Tensor[] = [];
     _backward: Function
 
-    constructor(data: NDarr<T>, label: string, shape?:number[], op: string = "", prev: Tensor<T>[] = []){
+    constructor(data: NDArray, label: string, shape?:number[], op: string = "", prev: Tensor[] = []){
         this.data = data
         this.label = label
 
@@ -29,7 +28,7 @@ export class Tensor<T extends number[]>{
         this._prev = prev
         this._backward = function(): void {}
     }
-
+    
     private calculateSizeFromShape(shape: number[]): number {
         // Calculate total number of elements in the tensor
         let size = shape[0];
@@ -39,40 +38,34 @@ export class Tensor<T extends number[]>{
         return size;
     }
     
-    private initializeGrad(shape: number[]) : NDarr<T> {
+    private initializeGrad(shape: number[]) : NDArray {
         // Initialize gradients with zeroes
         return this.createArray(shape, 0 as any)
     }
 
     // Function to calculate the shape of an NDarr
-    private calculateShape(arr: number[] | NDarr<any>): number[] {
-        // Base case: if it's a flat array (not an array of arrays), return an empty shape
-        if (!Array.isArray(arr) || arr.length === 0) {
-            return [];
-        }
-
-        // Recursive case: determine the shape of the nested array
+    private calculateShape(arr: NDArray): number[] {
         const shape: number[] = [];
-        let currentLevel: any[] = arr;
+        let current: any = this.data
         
-        while (Array.isArray(currentLevel) && currentLevel.length > 0) {
-            shape.push(currentLevel.length);
-            currentLevel = currentLevel[0];
+        while (Array.isArray(current)) {
+            shape.push(current.length);
+            current = current[0];
         }
         return shape;
     }
-
-    static zeroes<T extends number[]>(shape: number[], label: string = 'zeroes') : Tensor<T> {
-        const data = new Tensor<T>([] as NDarr<T>, label, shape).createArray(shape, 0)
+    
+    static zeroes(shape: number[], label: string = 'zeroes') : Tensor {
+        const data = new Tensor([], label, shape).createArray(shape, 0)
         return new Tensor(data, label, shape)
     }
 
-    static random<T extends number[]>(shape: T, label: string = 'random') : Tensor<T> {
-        const data = new Tensor<T>([] as NDarr<T>, label, shape).createArray(shape, 0, ()=> Math.random())
+    static random(shape: number[], label: string = 'random') : Tensor {
+        const data = new Tensor([], label, shape).createArray(shape, 0, ()=> Math.random())
         return new Tensor(data, label, shape)
     }
 
-    private createArray(shape: number[], value: number, randomfn?: () => number) : NDarr<T> {
+    private createArray(shape: number[], value: number, randomfn?: () => number) : NDArray {
         // Recursively create an array with the given shape and fill with the given value
         if (shape.length === 0) return (randomfn? randomfn() : value) as any;
 
@@ -81,7 +74,7 @@ export class Tensor<T extends number[]>{
         for (let i=0; i<head; i++) {
             arr.push(this.createArray(tail as any, value, randomfn));
         }
-        return arr as NDarr<T>;
+        return arr;
     }
 
     get rank() : number {
@@ -89,9 +82,9 @@ export class Tensor<T extends number[]>{
     }
 
     public backpropagation() {
-        let topo: Tensor<T>[] = []
-        let visited = new Set<Tensor<T>>()
-        function build_topo(v : Tensor<T>) {
+        let topo: Tensor[] = []
+        let visited = new Set<Tensor>()
+        function build_topo(v : Tensor) {
             if (!visited.has(v)) {
                 visited.add(v)
                 for (let child of v._prev) {
@@ -105,5 +98,10 @@ export class Tensor<T extends number[]>{
         for (let node of topo.toReversed()) {
             node._backward()
         }
+        topo.forEach((v)=> {v.print()})
+    }
+
+    public print() {
+        console.log("Value(label=" + this.label + ", data="+ this.data +", grad= " + this.grad + ")")
     }
 }
