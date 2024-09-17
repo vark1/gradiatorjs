@@ -1,4 +1,4 @@
-import { NDArray } from './types'
+import { NDArray, t_any } from './types'
 import { Tensor } from './tensor';
 
 export function assert(expr: boolean, msg: () => string) {
@@ -42,7 +42,7 @@ export function ophelper_(t: NDArray, op_type: string, num?: number): NDArray {
     }
 }
 
-export function convertToTensor(t: NDArray | Tensor) : Tensor {
+export function convertToTensor(t: t_any) : Tensor {
     if (t instanceof Tensor) {
         return t
     } else if (typeof t === 'number' || Array.isArray(t)) {
@@ -52,7 +52,7 @@ export function convertToTensor(t: NDArray | Tensor) : Tensor {
     }
 }
 
-export function broadcastAndConvertNum(t1: NDArray | Tensor, t2: NDArray | Tensor) : [Tensor, Tensor] {
+export function broadcastAndConvertNum(t1: t_any, t2: t_any) : [Tensor, Tensor] {
     //rank check to make sure we're only broadcasting when the other tensor is not a scalar tensor aswell
     if (typeof t1 === 'number' && t2 instanceof Tensor && t2.rank !== 0) {
         t1 = convertToTensor(t1)

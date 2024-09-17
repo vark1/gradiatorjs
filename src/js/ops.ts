@@ -1,51 +1,55 @@
 import { Tensor } from './tensor';
-import { NDArray } from './types';
+import { t_any } from './types';
 import * as utils from './utils';
 
 
-export function pow(t: Tensor, num: number) : Tensor {
-    const data = utils.ophelper_(t.data, '**', num)
-    let out = new Tensor(data, `(${t.label})^${num}`, t.shape, '**', [t])
+export function pow(t: t_any, num: number) : Tensor {
+    let t_ = utils.convertToTensor(t)
+    const data = utils.ophelper_(t_.data, '**', num)
+    let out = new Tensor(data, `(${t_.label})^${num}`, t_.shape, '**', [t_])
     function _backward() {
-        t.grad = utils.addNDarrays(t.grad, multiply(multiply(num, utils.ophelper_(t.data, '**', (num-1))), out.grad).data)
+        t_.grad = utils.addNDarrays(t_.grad, multiply(multiply(num, utils.ophelper_(t_.data, '**', (num-1))), out.grad).data)
     }
     out._backward = _backward
     return out
 }
 
-export function sDiv(t: Tensor, num: number) : Tensor {
-    const data = utils.ophelper_(t.data, '/', num)
-    return new Tensor(data, `(${t.label})/${num}`, t.shape, '/', [t])
+export function div(t: t_any, num: number) : Tensor {
+    let t_ = utils.convertToTensor(t)
+    const data = utils.ophelper_(t_.data, '/', num)
+    return new Tensor(data, `(${t_.label})/${num}`, t_.shape, '/', [t_])
 }
 
 //unary ops
-export function negate(t: Tensor) : Tensor {
+export function negate(t: t_any) : Tensor {
     const t_ = multiply(t, -1)
-    t_.label = `(-${t.label})`
-    t.op = '¬'
-    t._prev = [t]
+    t_.label = `(-${t_.label})`
+    t_.op = '¬'
+    t_._prev = [t_]
     return t_;
 }
 
 //unary functions
-export function exp(t: Tensor) : Tensor {
-    const data = utils.ophelper_(t.data, 'exp')
-    let out = new Tensor(data, `e^(${t.label})`, t.shape, 'exp', [t])
+export function exp(t: t_any) : Tensor {
+    let t_ = utils.convertToTensor(t)
+    const data = utils.ophelper_(t_.data, 'exp')
+    let out = new Tensor(data, `e^(${t_.label})`, t_.shape, 'exp', [t_])
     
     function _backward() {
-        t.grad = add(t.grad, multiply(out.data, out.grad)).data
+        t_.grad = add(t_.grad, multiply(out.data, out.grad)).data
     }
     out._backward = _backward
 
     return out
 }
 
-export function tanh(t: Tensor) : Tensor {
-    const data = utils.ophelper_(t.data, 'tanh')
-    let out = new Tensor(data, `tanh(${t.label})`, t.shape, 'tanh', [t])
+export function tanh(t: t_any) : Tensor {
+    let t_ = utils.convertToTensor(t)
+    const data = utils.ophelper_(t_.data, 'tanh')
+    let out = new Tensor(data, `tanh(${t_.label})`, t_.shape, 'tanh', [t_])
     
     function _backward() { 
-        t.grad = add(t.grad, multiply(subtract(1, pow(t, 2)), out.grad).data).data
+        t_.grad = add(t_.grad, multiply(subtract(1, pow(data, 2)), out.grad).data).data
         // console.log(1-((0.7071)**2))
     }
     out._backward = _backward
@@ -54,7 +58,7 @@ export function tanh(t: Tensor) : Tensor {
 }
 
 //binary ops
-export function add(t1: NDArray | Tensor, t2: NDArray | Tensor) : Tensor {
+export function add(t1: t_any, t2: t_any) : Tensor {
     let [t1_, t2_] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1_.rank === t2_.rank, ()=> `In addition: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
     utils.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In addition: Both tensors must have the same shape')
@@ -69,7 +73,7 @@ export function add(t1: NDArray | Tensor, t2: NDArray | Tensor) : Tensor {
     return out
 }
 
-export function subtract(t1: NDArray | Tensor, t2: NDArray | Tensor) : Tensor {
+export function subtract(t1: t_any, t2: t_any) : Tensor {
     let [t1_, t2_] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1_.rank === t2_.rank, ()=> `In subtraction: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
     utils.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In subtraction: Both tensors must have the same shape')
@@ -85,7 +89,9 @@ export function subtract(t1: NDArray | Tensor, t2: NDArray | Tensor) : Tensor {
     return out
 }
 
-export function dot(t1: Tensor, t2: Tensor) : Tensor {
+export function dot(t1: t_any, t2: t_any) : Tensor {
+    t1 = utils.convertToTensor(t1)
+    t2 = utils.convertToTensor(t2)
     utils.assert((t1.rank === 1 || t1.rank === 2) && (t2.rank === 1 || t2.rank === 2), () => `In dot: Both inputs must all be rank 1 or 2`);
     const t1Inner = (t1.rank === 1 ? t1.size : t1.shape[1]);
     const t2Inner = (t2.rank === 1 ? t2.size : t2.shape[0]);    
@@ -148,7 +154,7 @@ export function dot(t1: Tensor, t2: Tensor) : Tensor {
     return new Tensor(result, `${t1.label} . ${t2.label}`, shape, 'dot', [t1, t2])
 }
 
-export function multiply(t1: NDArray | Tensor, t2: NDArray | Tensor) : Tensor {
+export function multiply(t1: t_any, t2: t_any) : Tensor {
     let [t1_, t2_] = utils.broadcastAndConvertNum(t1, t2)
     utils.assert(t1_.rank === t2_.rank, ()=> `In hadamard product: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
     utils.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In hadamard product: Both tensors must have the same shape')
