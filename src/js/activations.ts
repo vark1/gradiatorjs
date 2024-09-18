@@ -1,6 +1,6 @@
 import { Tensor } from './tensor';
 import { NDArray, t_any } from './types';
-import { applyFnElementwise, convertToTensor } from './utils';
+import { applyFnUnary, convertToTensor } from './utils';
 import {add, sub, pow, mul} from './ops'
 
 const ACT_MAP = {
@@ -10,7 +10,7 @@ const ACT_MAP = {
 };
 
 const DER_MAP = {
-    "relu" : (x: NDArray) => applyFnElementwise(x, (v) => (v === 0 ? 0 : 1)),
+    "relu" : (x: NDArray) => applyFnUnary(x, (v) => (v === 0 ? 0 : 1)),
     "sigmoid": (x: NDArray) => mul(x, sub(1, x)),
     "tanh": (x: NDArray) => sub(1, pow(x, 2))
 }
@@ -19,7 +19,7 @@ const DER_MAP = {
 // Main function to apply activation function
 export function activationfn(t: t_any, type: keyof typeof ACT_MAP = 'relu'): Tensor {
     let t_ = convertToTensor(t);
-    const data = applyFnElementwise(t_.data, ACT_MAP[type]);
+    const data = applyFnUnary(t_.data, ACT_MAP[type]);
     
     let out = new Tensor(data, `${type}(${t_.label})`, t_.shape, type, [t_]);
 
