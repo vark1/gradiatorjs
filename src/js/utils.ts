@@ -79,3 +79,12 @@ export function createArray(shape: number[], value: number, randomfn?: () => num
     }
     return arr;
 }
+
+// Apply a function element-wise
+export function applyFnElementwise(t: NDArray, fn: (x: number) => number): NDArray {
+    if (Array.isArray(t)) {
+        return t.map((val) => applyFnElementwise(val, fn));
+    } else {
+        return fn(t);
+    }
+}

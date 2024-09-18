@@ -1,5 +1,6 @@
 import {Tensor} from './tensor';
 import * as op from './ops';
+import * as act from './activations'
 
 //scalar
 // let x = new Tensor(1, 'x')
@@ -27,7 +28,7 @@ let x1w1 = op.multiply(x1, w1); x1w1.label = 'x1*w1'
 let x2w2 = op.multiply(x2, w2); x2w2.label = 'x2*w2'
 let x1w1x2w2 = op.add(x1w1, x2w2); x1w1x2w2.label = 'x1*w1 + x2*w2'
 let n = op.add(x1w1x2w2, b); n.label = 'n'
-let o = op.tanh(n); o.label = 'o'
+let o = act.activationfn(n, 'tanh'); o.label = 'o'
 o.backpropagation()
 
 // x1.print()

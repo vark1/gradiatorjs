@@ -17,7 +17,7 @@ export class Tensor{
         this.data = data
         this.label = label
 
-        let calcShape = this.calculateShape(data);
+        let calcShape = this.calculateShape();
         if (typeof shape !== 'undefined' && shape.length !== 0 && !(calcShape.length === shape.length && calcShape.every(function(value, index) { return value === shape[index]}))) {
             throw new Error(`Shape provided doesn't match the shape of the Tensor provided. Shape of the tensor: ${calcShape} Shape provided: ${shape}`)
         }
@@ -44,7 +44,7 @@ export class Tensor{
     }
 
     // Function to calculate the shape of an NDarr
-    private calculateShape(arr: NDArray): number[] {
+    private calculateShape(): number[] {
         const shape: number[] = [];
         let current: any = this.data
         
@@ -56,12 +56,12 @@ export class Tensor{
     }
     
     static zeroes(shape: number[], label: string = 'zeroes') : Tensor {
-        const data = new Tensor([], label, shape).createArray(shape, 0)
+        const data = new Tensor([], label).createArray(shape, 0)
         return new Tensor(data, label, shape)
     }
 
     static random(shape: number[], label: string = 'random') : Tensor {
-        const data = new Tensor([], label, shape).createArray(shape, 0, ()=> Math.random())
+        const data = new Tensor([], label).createArray(shape, 0, ()=> Math.random())
         return new Tensor(data, label, shape)
     }
 
@@ -98,7 +98,6 @@ export class Tensor{
         for (let node of topo.toReversed()) {
             node._backward()
         }
-        topo.forEach((v)=> {v.print()})
     }
 
     public print() {
