@@ -1,12 +1,13 @@
 import { Tensor } from './tensor';
 import { NDArray, t_any } from './types';
-import { applyFnUnary, convertToTensor } from './utils';
+import { applyFnUnary } from './utils/utils_nd';
+import { convertToTensor } from './utils/utils_tensor';
 import {add, sub, pow, mul} from './ops'
 
 const ACT_MAP = {
     "relu": (x: number) => Math.max(x, 0),
     "sigmoid": (x: number) => 1 / (1 + Math.exp(-x)),
-    "tanh": (x: number) => (Math.exp(2 * x) - 1) / (Math.exp(2 * x) + 1)
+    "tanh": (x: number) => Math.tanh(x)
 };
 
 const DER_MAP = {

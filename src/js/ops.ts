@@ -1,21 +1,26 @@
 import { Tensor } from './tensor';
 import { t_any } from './types';
-import * as utl from './utils';
+import * as utl from './utils/utils_nd';
+import { broadcastAndConvertNum, convertToTensor } from './utils/utils_tensor';
+import {assert} from './utils/utils'
 
+// TODO : ADD BACKWARD FOR REMAINING OPS; OPTIMIZE USING TYPED ARRAYS AND DEL EXCESS TENSOR CREATIONS 
+// MAYBE CONVERT NDARR TO A SINGLE TYPED ARRAY FOR PERF? 
 
 export function pow(t: t_any, num: number) : Tensor {
-    let t_ = utl.convertToTensor(t)
+    let t_ = convertToTensor(t)
     const data = utl.applyFnUnary(t_.data, (x)=> (x ** num))
     let out = new Tensor(data, `(${t_.label})^${num}`, t_.shape, '**', [t_])
-    function _backward() {
-        t_.grad = utl.applyFnBinary(t_.grad, mul(mul(num, pow(t_.data, (num-1))), out.grad).data, (x,y)=>(x+y))
-    }
-    out._backward = _backward
+
+    out._backward = () => {
+        let derivative = mul(mul(num, pow(t_, (num-1))), out.grad)
+        t_.grad = add(t_.grad, derivative).data;
+    };
     return out
 }
 
 export function div(t: t_any, num: number) : Tensor {
-    let t_ = utl.convertToTensor(t)
+    let t_ = convertToTensor(t)
     const data = utl.applyFnUnary(t_.data, (x)=> (x / num))
     return new Tensor(data, `(${t_.label})/${num}`, t_.shape, '/', [t_])
 }
@@ -30,56 +35,50 @@ export function negate(t: t_any) : Tensor {
 }
 
 export function exp(t: t_any) : Tensor {
-    let t_ = utl.convertToTensor(t)
+    let t_ = convertToTensor(t)
     const data = utl.applyFnUnary(t_.data, (x)=> (Math.exp(x)))
     let out = new Tensor(data, `e^(${t_.label})`, t_.shape, 'exp', [t_])
-    
-    function _backward() {
-        t_.grad = add(t_.grad, mul(out.data, out.grad)).data
-    }
-    out._backward = _backward
+
+    out._backward = () => {
+        let derivative = mul(out.data, out.grad)
+        t_.grad = add(t_.grad, derivative).data;
+    };
 
     return out
 }
 
 //binary ops
 export function add(t1: t_any, t2: t_any) : Tensor {
-    let [t1_, t2_] = utl.broadcastAndConvertNum(t1, t2)
-    utl.assert(t1_.rank === t2_.rank, ()=> `In addition: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
-    utl.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In addition: Both tensors must have the same shape')
+    let [t1_, t2_] = broadcastAndConvertNum(t1, t2)
+    assert(t1_.rank === t2_.rank, ()=> `In addition: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
+    assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In addition: Both tensors must have the same shape')
 
     let additionResult = utl.applyFnBinary(t1_.data, t2_.data, (x, y)=>(x + y))    
     let out = new Tensor(additionResult, `${t1_.label} + ${t2_.label}`, t1_.shape, '+', [t1_, t2_])
-    let backward = () => {
-        t1_.grad = utl.applyFnBinary(t1_.grad, out.grad, (x, y)=>(x + y))
-        t2_.grad = utl.applyFnBinary(t2_.grad, out.grad, (x, y)=>(x + y))
+    out._backward = () => {
+        t1_.grad = add(t1_.grad, out.grad).data
+        t2_.grad = add(t2_.grad, out.grad).data
     }
-    out._backward = backward
     return out
 }
 
 export function sub(t1: t_any, t2: t_any) : Tensor {
-    let [t1_, t2_] = utl.broadcastAndConvertNum(t1, t2)
-    utl.assert(t1_.rank === t2_.rank, ()=> `In subtraction: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
-    utl.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In subtraction: Both tensors must have the same shape')
+    let [t1_, t2_] = broadcastAndConvertNum(t1, t2)
+    assert(t1_.rank === t2_.rank, ()=> `In subtraction: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
+    assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In subtraction: Both tensors must have the same shape')
 
     let subtractionResult = utl.applyFnBinary(t1_.data, t2_.data, (x,y)=>(x-y))
     let out = new Tensor(subtractionResult, `${t1_.label} - ${t2_.label}`, t1_.shape, '-', [t1_, t2_])
-    let backward = () => {
-        t1_.grad = utl.applyFnBinary(t1_.grad, out.grad, (x,y)=>(x+y))
-        t2_.grad = utl.applyFnBinary(t2_.grad, out.grad, (x,y)=>(x+y))
-    }
-    out._backward = backward
     return out
 }
 
 export function dot(t1: t_any, t2: t_any) : Tensor {
-    t1 = utl.convertToTensor(t1)
-    t2 = utl.convertToTensor(t2)
-    utl.assert((t1.rank === 1 || t1.rank === 2) && (t2.rank === 1 || t2.rank === 2), () => `In dot: Both inputs must all be rank 1 or 2`);
+    t1 = convertToTensor(t1)
+    t2 = convertToTensor(t2)
+    assert((t1.rank === 1 || t1.rank === 2) && (t2.rank === 1 || t2.rank === 2), () => `In dot: Both inputs must all be rank 1 or 2`);
     const t1Inner = (t1.rank === 1 ? t1.size : t1.shape[1]);
     const t2Inner = (t2.rank === 1 ? t2.size : t2.shape[0]);    
-    utl.assert(t1Inner === t2Inner, ()=> `In dot: inner dimensions didn't match`)
+    assert(t1Inner === t2Inner, ()=> `In dot: inner dimensions didn't match`)
 
     let shape : number[];
     let result : number[] | number[][] = [];
@@ -139,17 +138,16 @@ export function dot(t1: t_any, t2: t_any) : Tensor {
 }
 
 export function mul(t1: t_any, t2: t_any) : Tensor {
-    let [t1_, t2_] = utl.broadcastAndConvertNum(t1, t2)
-    utl.assert(t1_.rank === t2_.rank, ()=> `In hadamard product: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
-    utl.assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In hadamard product: Both tensors must have the same shape')
+    let [t1_, t2_] = broadcastAndConvertNum(t1, t2)
+    assert(t1_.rank === t2_.rank, ()=> `In hadamard product: Both tensors must have the same rank. got t1_ rank: ${t1_.rank} and t2_ rank: ${t2_.rank}`)
+    assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In hadamard product: Both tensors must have the same shape')
 
     const result = utl.applyFnBinary(t1_.data, t2_.data, (x,y)=>(x*y))
 
     let out = new Tensor(result, `${t1_.label} # ${t2_.label}`, t1_.shape, 'element wise multiplication', [t1_, t2_])
-    function _backward() {
-        t1_.grad = utl.applyFnBinary(t1_.grad, utl.applyFnBinary(t2_.data, out.grad, (x,y)=>(x*y)), (x,y)=>(x+y))
-        t2_.grad = utl.applyFnBinary(t2_.grad, utl.applyFnBinary(t1_.data, out.grad, (x,y)=>(x*y)), (x,y)=>(x+y)) 
+    out._backward = () => {
+        t1_.grad = add(t1_.grad, mul(t2_, out.grad)).data
+        t2_.grad = add(t2_.grad, mul(t1_, out.grad)).data
     }
-    out._backward = _backward
     return out
 }

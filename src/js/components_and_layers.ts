@@ -1,6 +1,7 @@
 import { activationfn } from "./activations";
 import { add, dot } from "./ops";
 import { Tensor } from "./tensor";
+import {ndrandom} from "./utils/utils_nd";
 
 export class Neuron {
     weights: Tensor
@@ -8,18 +9,25 @@ export class Neuron {
     nonlin: boolean
 
     constructor (nin: Tensor, nonlin: boolean = true){
-        this.weights = Tensor.random(nin.shape) // TODO: Make this uniform dis
+        this.weights = new Tensor(ndrandom(nin.shape), 'w') // TODO: Make this 'normal dis'
         this.nonlin = nonlin
         this.bias = new Tensor(0, 'bias')
     }
 
-    public forward(inputs: Tensor) {
-        let z = add(dot(this.weights, inputs), this.bias)
+    public forward(input: Tensor) {
+        let z = add(dot(this.weights, input), this.bias)
         return this.nonlin ? activationfn(z) : z;
     }
 }
 
 // FC
+export class FCLayer {
+    neurons: Neuron[]
+
+    constructor (num_neurons: number) {
+        this.neurons = new Array<Neuron>(num_neurons)
+    }
+}
 
 // Softmax 
 

@@ -24,8 +24,8 @@ let w2 = new Tensor(1.0, 'w2')
 
 let b = new Tensor(6.881373587019532, 'b')
 
-let x1w1 = op.multiply(x1, w1); x1w1.label = 'x1*w1'
-let x2w2 = op.multiply(x2, w2); x2w2.label = 'x2*w2'
+let x1w1 = op.mul(x1, w1); x1w1.label = 'x1*w1'
+let x2w2 = op.mul(x2, w2); x2w2.label = 'x2*w2'
 let x1w1x2w2 = op.add(x1w1, x2w2); x1w1x2w2.label = 'x1*w1 + x2*w2'
 let n = op.add(x1w1x2w2, b); n.label = 'n'
 let o = act.activationfn(n, 'tanh'); o.label = 'o'

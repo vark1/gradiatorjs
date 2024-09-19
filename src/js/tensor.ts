@@ -1,4 +1,6 @@
 import {NDArray} from './types'
+import {createArray} from './utils/utils_nd'
+
 /*
 Tensor is the basic building block of all data in the neural net. You can 
 use it to create scalar values, or use it to create 3D volumes of numbers.
@@ -39,8 +41,8 @@ export class Tensor{
     }
     
     private initializeGrad(shape: number[]) : NDArray {
-        // Initialize gradients with zeroes
-        return this.createArray(shape, 0 as any)
+        // Initialize gradients with zeros
+        return createArray(shape, 0 as any)
     }
 
     // Function to calculate the shape of an NDarr
@@ -55,28 +57,6 @@ export class Tensor{
         return shape;
     }
     
-    static zeroes(shape: number[], label: string = 'zeroes') : Tensor {
-        const data = new Tensor([], label).createArray(shape, 0)
-        return new Tensor(data, label, shape)
-    }
-
-    static random(shape: number[], label: string = 'random') : Tensor {
-        const data = new Tensor([], label).createArray(shape, 0, ()=> Math.random())
-        return new Tensor(data, label, shape)
-    }
-
-    private createArray(shape: number[], value: number, randomfn?: () => number) : NDArray {
-        // Recursively create an array with the given shape and fill with the given value
-        if (shape.length === 0) return (randomfn? randomfn() : value) as any;
-
-        const [head, ...tail] = shape;
-        const arr: any[] = [];
-        for (let i=0; i<head; i++) {
-            arr.push(this.createArray(tail as any, value, randomfn));
-        }
-        return arr;
-    }
-
     get rank() : number {
         return this.shape.length
     }
@@ -94,7 +74,7 @@ export class Tensor{
             }
         }
         build_topo(this)
-        this.grad = this.createArray(this.shape, 1.0 as any)
+        this.grad = createArray(this.shape, 1.0 as any)
         for (let node of topo.toReversed()) {
             node._backward()
         }
