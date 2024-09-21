@@ -1,4 +1,6 @@
-import { NDArray, t_any } from '../types'
+import { Tensor } from '../tensor';
+import { NDArray } from '../types'
+import { assert } from './utils';
 
 // Apply a function element-wise on a single ND array (Unary operation)
 export function applyFnUnary(t: NDArray, fn: (x: number) => number): NDArray {
@@ -38,4 +40,37 @@ export function ndrandom(shape: number[]) : NDArray {
     return createArray(shape, 0, ()=> Math.random())
 }
 
-// TODO: add reshape and resize
+export function flattenNd(a: NDArray) : number[]{
+    if (typeof a === 'number') {
+        return [a]
+    }
+    
+    let res = []
+    if (Array.isArray(a)) {
+        for (let e of a) {
+            res = res.concat(flattenNd(e))
+        }
+    }
+    return res
+}
+
+export function reshape(a: NDArray, shape: number[]) : NDArray{
+    const size = new Tensor(a, '').size
+    const required = shape.reduce((a, b) => a * b, 1);
+    
+    assert(size == required, ()=>'Cannot reshape array: number of elements does not match the shape');
+
+    let fa = flattenNd(a)
+    return _reshape(fa, shape)
+}
+
+function _reshape(a: number[], shape: number[]) : NDArray{
+    if (shape.length === 0)  return a.shift() as number;
+
+    const [head, ...tail] = shape
+    const result: NDArray[] = []
+    for (let i=0; i<head; i++) {
+        result.push(_reshape(a, tail));
+    }
+    return result
+}
