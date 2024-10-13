@@ -1,8 +1,8 @@
 import { Tensor } from './tensor';
-import { t_any } from './types';
-import * as utl from './utils/utils_nd';
-import { broadcastAndConvertNum, convertToTensor } from './utils/utils_tensor';
-import {assert} from './utils/utils'
+import { NDArray, t_any } from './types';
+import * as utl from '../nd_old/utils_nd';
+import { broadcastAndConvertNum, convertToTensor } from '../utils/utils_tensor';
+import {assert} from '../utils/utils'
 
 // TODO : ADD BACKWARD FOR REMAINING OPS; OPTIMIZE USING TYPED ARRAYS AND DEL EXCESS TENSOR CREATIONS 
 // MAYBE CONVERT NDARR TO A SINGLE TYPED ARRAY FOR PERF? 
@@ -47,6 +47,18 @@ export function exp(t: t_any) : Tensor {
     return out
 }
 
+export function log(t: t_any) : Tensor {
+    let t_ = convertToTensor(t)
+    const data = utl.applyFnUnary(t_.data, (x)=> (Math.log(x)))
+    let out = new Tensor(data, `log(${t_.label})`, t_.shape, 'log', [t_])
+
+    out._backward = () => {
+        let derivative = mul(pow(out.data, -1), out.grad)
+        t_.grad = add(t_.grad, derivative).data
+    }
+    return out
+}
+
 //binary ops
 export function add(t1: t_any, t2: t_any) : Tensor {
     let [t1_, t2_] = broadcastAndConvertNum(t1, t2)
@@ -78,7 +90,7 @@ export function dot(t1: t_any, t2: t_any) : Tensor {
     assert((t1.rank === 1 || t1.rank === 2) && (t2.rank === 1 || t2.rank === 2), () => `In dot: Both inputs must all be rank 1 or 2`);
     const t1Inner = (t1.rank === 1 ? t1.size : t1.shape[1]);
     const t2Inner = (t2.rank === 1 ? t2.size : t2.shape[0]);    
-    assert(t1Inner === t2Inner, ()=> `In dot: inner dimensions didn't match`)
+    assert(t1Inner === t2Inner, ()=> `In dot: inner dimensions didn't match. dimensioins got: ${t1Inner} and ${t2Inner}`)
 
     let shape : number[];
     let result : number[] | number[][] = [];
@@ -150,4 +162,16 @@ export function mul(t1: t_any, t2: t_any) : Tensor {
         t2_.grad = add(t2_.grad, mul(t1_, out.grad)).data
     }
     return out
+}
+
+export function sum(t: NDArray) : number {
+    if (Array.isArray(t)) {
+        let res = 0
+        for (let i=0; i<t.length; i++) {
+            res += sum(t[i])
+        }
+        return res
+    } else {
+        return t
+    }
 }

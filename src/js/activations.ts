@@ -1,8 +1,5 @@
-import { Tensor } from './tensor';
-import { NDArray, t_any } from './types';
-import { applyFnUnary } from './utils/utils_nd';
-import { convertToTensor } from './utils/utils_tensor';
-import {add, sub, pow, mul} from './ops'
+import {add, sub, pow, mul} from './Val/ops'
+import { Val } from './Val/val';
 
 const ACT_MAP = {
     "relu": (x: number) => Math.max(x, 0),
@@ -11,24 +8,24 @@ const ACT_MAP = {
 };
 
 const DER_MAP = {
-    "relu" : (x: NDArray) => applyFnUnary(x, (v) => (v === 0 ? 0 : 1)),
-    "sigmoid": (x: NDArray) => mul(x, sub(1, x)),
-    "tanh": (x: NDArray) => sub(1, pow(x, 2))
+    "relu" : function (x: Val) {
+        let y = new Val(x.shape)
+        y.data = x.data.map((v) => (v === 0 ? 0 : 1))
+        return y
+    },
+    "sigmoid": (x: Val) => mul(x, sub(1, x)),
+    "tanh": (x: Val) => sub(1, pow(x, 2))
 }
 
-
-// Main function to apply activation function
-export function activationfn(t: t_any, type: keyof typeof ACT_MAP = 'relu'): Tensor {
-    let t_ = convertToTensor(t);
-    const data = applyFnUnary(t_.data, ACT_MAP[type]);
+export function activationfn(t: Val, type: keyof typeof ACT_MAP = 'relu'): Val {
+    let x = new Val(t.shape)
+    x.data = t.data.map(k => ACT_MAP[type](k))
     
-    let out = new Tensor(data, `${type}(${t_.label})`, t_.shape, type, [t_]);
-
     // Backward pass using derivative
-    out._backward = () => {
-        let derivative = mul(DER_MAP[type](data), out.grad);
-        t_.grad = add(t_.grad, derivative).data;
-    };
+    // out._backward = () => {
+    //     let derivative = mul(DER_MAP[type](data), out.grad);
+    //     t_.grad = add(t_.grad, derivative).data;
+    // };
 
-    return out;
+    return x;
 }

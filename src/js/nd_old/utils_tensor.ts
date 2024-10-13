@@ -1,6 +1,6 @@
-import { Tensor } from "../tensor";
-import { t_any } from "../types";
-import { createArray } from "./utils_nd";
+import { Tensor } from "../nd_old/tensor";
+import { t_any } from "../nd_old/types";
+import { createArray } from "../nd_old/utils_nd";
 
 export function convertToTensor(t: t_any) : Tensor {
     if (t instanceof Tensor) {

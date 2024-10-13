@@ -1,5 +1,5 @@
 import {NDArray} from './types'
-import {createArray} from './utils/utils_nd'
+import {createArray} from './utils_nd'
 
 /*
 Tensor is the basic building block of all data in the neural net. You can 

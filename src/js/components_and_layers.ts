@@ -1,7 +1,7 @@
 import { activationfn } from "./activations";
-import { add, dot } from "./ops";
-import { Tensor } from "./tensor";
-import {ndrandom} from "./utils/utils_nd";
+import { add, dot } from "./Val/ops";
+import { Tensor } from "./nd_old/tensor";
+import {ndrandom} from "./nd_old/utils_nd";
 
 export class Neuron {
     weights: Tensor

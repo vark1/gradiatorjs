@@ -1,6 +1,6 @@
-import {Tensor} from './tensor';
-import * as op from './ops';
-import * as act from './activations'
+import {Tensor} from '../nd_old/tensor';
+import * as op from '../Val/ops';
+import * as act from '../activations'
 
 //scalar
 // let x = new Tensor(1, 'x')

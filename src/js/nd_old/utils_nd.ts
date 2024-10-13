@@ -1,6 +1,6 @@
-import { Tensor } from '../tensor';
-import { NDArray } from '../types'
-import { assert } from './utils';
+import { Tensor } from './tensor';
+import { NDArray } from './types'
+import { assert } from '../utils/utils';
 
 // Apply a function element-wise on a single ND array (Unary operation)
 export function applyFnUnary(t: NDArray, fn: (x: number) => number): NDArray {
@@ -68,9 +68,31 @@ function _reshape(a: number[], shape: number[]) : NDArray{
     if (shape.length === 0)  return a.shift() as number;
 
     const [head, ...tail] = shape
-    const result: NDArray[] = []
+    const result: NDArray = []
     for (let i=0; i<head; i++) {
         result.push(_reshape(a, tail));
     }
     return result
+}
+
+// 2D arrays 
+export function transpose(a: NDArray): NDArray {
+    const rank = new Tensor(a, '').rank;
+
+    assert(rank === 2, () => 'transpose only supports 2D arrays');
+
+    if (rank === 0 || rank === 1) return a;
+
+    const rows = (a as number[][]).length;
+    const cols = (a as number[][])[0].length;
+    
+    let result: number[][] = Array.from({ length: cols }, () => Array(rows).fill(0));
+
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+            result[j][i] = (a as number[][])[i][j];
+        }
+    }
+
+    return result;
 }

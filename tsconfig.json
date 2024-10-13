@@ -2,9 +2,14 @@
     "compilerOptions": {
         "target": "ESNext",
         "moduleResolution":"node",
+        "allowJs": true,            // Allows js files to be compiled
+        "checkJs": false,           // If you dont want ts to type-check js files
+        "esModuleInterop": true,    // To ensure default imports work smoothly
     },
     "plugins": [
         {"jsfive": "jsfive"}
     ],
-    
+    "exclude": [
+        "src/js/utils/utils_data.js"
+    ]
 }
