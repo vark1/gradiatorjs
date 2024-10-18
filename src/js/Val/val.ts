@@ -1,4 +1,4 @@
-import { assert } from "../utils/utils";
+import { assert } from "../utils/utils.js";
 
 /* Everything in the neural net will be made of Val. */
 export class Val{
@@ -27,7 +27,7 @@ export class Val{
         this._data = this.createArr(a)
     }
 
-    private createArr(a) {
+    private createArr(a: any) {
         if (typeof a === "number") {
             let x = new Float64Array(1)
             x[0] = a
@@ -39,11 +39,11 @@ export class Val{
         }
     }
 
-    private flattenND(a: any) {
+    private flattenND(a: any) : number[]{
         if (typeof a === 'number') {
             return [a]
         }
-        let res = []
+        let res : number[] = []
         if (Array.isArray(a)) {
             for (let e of a) {
                 res = res.concat(this.flattenND(e))
@@ -65,7 +65,7 @@ export class Val{
         return size;
     }
 
-    private calculateShape(x): number[] {
+    private calculateShape(x: any): number[] {
         const shape: number[] = [];
         let current: any = x
         
@@ -95,5 +95,32 @@ export class Val{
         x.data = this.data
         x.size = this.size
         return x
+    }
+    get T() : Val {
+        if(this.dim === 1) return this;
+        assert(this.dim === 2, () => 'transpose only supports 2D arrays');
+        let x = new Float64Array(this.size)
+        let y = this.data
+        let newShape = [...this.shape];
+        let res = new Val(newShape)
+        newShape[0] = this.shape[1];
+        newShape[1] = this.shape[0];
+    
+        for (let i=0; i<this.shape[0]; i++) {
+            for (let j=0; j<this.shape[1]; j++) {
+                x[j*this.shape[0] + i] = y[i*this.shape[1] + j]
+            }
+        }
+        res.data=x
+        return res
+    }
+
+    reshape(newShape: number[]) {
+        const requiredSize = newShape.reduce((a, b) => a * b, 1);
+        assert(this.size == requiredSize, ()=>'Cannot reshape array: number of elements does not match the shape');
+        
+        let result = new Val(newShape)
+        result.data = this.data
+        return result
     }
 }

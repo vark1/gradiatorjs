@@ -1,10 +1,10 @@
-import {assert} from '../utils/utils'
-import { Val } from './val';
+import {assert} from '../utils/utils.js'
+import { Val } from './val.js';
 
 function broadcast(t1: Val|number, t2: Val|number) : [Val, Val] {
     //dim check to make sure we're only broadcasting when the other tensor is not a scalar tensor aswell
-    let t1shape = []
-    let t2shape = []
+    let t1shape: number[] = []
+    let t2shape: number[] = []
     let t1data = null
     let t2data = null
     if (typeof t1 === 'number' && t2 instanceof Val && t2.dim !== 0) {
@@ -39,7 +39,7 @@ export function add(t1: Val|number, t2: Val|number) : Val {
     assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In addition: Both matrices must have the same shape')
 
     let res = new Val(t1_.shape)
-    res.data = t1_.data.map((num, idx)=>num + t2_.data[idx])
+    res.data = t1_.data.map((num: number, idx: number)=>num + t2_.data[idx])
     return res
 }
 
@@ -49,7 +49,7 @@ export function sub(t1: Val|number, t2: Val|number) : Val {
     assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In subtraction: Both matrices must have the same shape')
 
     let res = new Val(t1_.shape)
-    res.data = t1_.data.map((num, idx)=>num - t2_.data[idx])
+    res.data = t1_.data.map((num: number, idx: number)=>num - t2_.data[idx])
     return res
 }
 
@@ -59,7 +59,7 @@ export function mul(t1: Val|number, t2: Val|number) : Val {
     assert(t1_.shape.every((dimension, index) => dimension == t2_.shape[index]), () => 'In hadamard product: Both matrices must have the same shape')
 
     let res = new Val(t1_.shape)
-    res.data = t1_.data.map((num, idx)=> num*t2_.data[idx])
+    res.data = t1_.data.map((num: number, idx: number)=> num*t2_.data[idx])
     return res
 }
 
@@ -171,38 +171,50 @@ export function dot(t1: Val, t2: Val) : Val {
 }
 */
 
-export function sum(t: Val) : Val {
-    let x = new Val([1])
-    x.data = [t.data.reduce((a, c)=> a+c)]
-    return x
-}
-
 export function pow(t: Val, num: number) : Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => k ** num)
+    x.data = t.data.map((k:number) => k ** num)
     return x
 }
 
 export function div(t: Val, num: number) : Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => k / num)
+    x.data = t.data.map((k:number) => k / num)
     return x
 }
 
 export function negate(t: Val) : Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => -k)
+    x.data = t.data.map((k:number) => -k)
+    return x
+}
+
+export function abs(t: Val) : Val {
+    let x = new Val(t.shape)
+    x.data = t.data.map((k:number) => Math.abs(k))
     return x
 }
 
 export function exp(t: Val) : Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => Math.exp(k))
+    x.data = t.data.map((k:number) => Math.exp(k))
     return x
 }
 
 export function log(t: Val) : Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => Math.log(k))
+    x.data = t.data.map((k:number) => Math.log(k))
+    return x
+}
+
+export function sum(t: Val) : Val {
+    let x = new Val([1])
+    x.data = [t.data.reduce((a: number, c: number)=> a+c)]
+    return x
+}
+
+export function mean(t: Val) : Val {
+    let x = new Val([1])
+    x.data = [t.data.reduce((a: number, c: number)=> a+c)/t.data.length]
     return x
 }

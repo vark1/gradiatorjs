@@ -1,15 +1,26 @@
 {
     "compilerOptions": {
-        "target": "ESNext",
-        "moduleResolution":"node",
-        "allowJs": true,            // Allows js files to be compiled
-        "checkJs": false,           // If you dont want ts to type-check js files
-        "esModuleInterop": true,    // To ensure default imports work smoothly
+        "module": "ES6",
+        "target": "ES6",
+        "lib": ["es2016", "dom"],
+        "moduleResolution": "node",
+        "allowJs": true,            
+        "checkJs": false,
+        "outDir": "./dist",
+        "declaration": true,
+        "sourceMap": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "skipLibCheck": true
     },
     "plugins": [
-        {"jsfive": "jsfive"}
+        { "jsfive": "jsfive" }
     ],
     "exclude": [
-        "src/js/utils/utils_data.js"
-    ]
+        // "src/js/utils/utils_data.js",
+        "node_modules"
+    ],
+    "include": [
+        "src/**/*.ts" 
+, "jsfive.d.ts"    ],
 }

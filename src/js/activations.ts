@@ -1,5 +1,5 @@
-import {add, sub, pow, mul} from './Val/ops'
-import { Val } from './Val/val';
+import {add, sub, pow, mul} from './Val/ops.js'
+import { Val } from './Val/val.js';
 
 const ACT_MAP = {
     "relu": (x: number) => Math.max(x, 0),
@@ -10,7 +10,7 @@ const ACT_MAP = {
 const DER_MAP = {
     "relu" : function (x: Val) {
         let y = new Val(x.shape)
-        y.data = x.data.map((v) => (v === 0 ? 0 : 1))
+        y.data = x.data.map((v: number) => (v === 0 ? 0 : 1))
         return y
     },
     "sigmoid": (x: Val) => mul(x, sub(1, x)),
@@ -19,7 +19,7 @@ const DER_MAP = {
 
 export function activationfn(t: Val, type: keyof typeof ACT_MAP = 'relu'): Val {
     let x = new Val(t.shape)
-    x.data = t.data.map(k => ACT_MAP[type](k))
+    x.data = t.data.map((k: number) => ACT_MAP[type](k))
     
     // Backward pass using derivative
     // out._backward = () => {
