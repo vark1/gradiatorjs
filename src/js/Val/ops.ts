@@ -1,7 +1,7 @@
 import {assert} from '../utils/utils.js'
 import { Val } from './val.js';
 
-function broadcast(t1: Val|number, t2: Val|number) : [Val, Val] {
+export function broadcast(t1: Val|number, t2: Val|number) : [Val, Val] {
     //dim check to make sure we're only broadcasting when the other tensor is not a scalar tensor aswell
     let t1shape: number[] = []
     let t2shape: number[] = []
@@ -13,12 +13,42 @@ function broadcast(t1: Val|number, t2: Val|number) : [Val, Val] {
     }else if (typeof t2 === 'number' && t1 instanceof Val && t1.dim !== 0) {
         t2shape = t1.shape
         t2data = new Float64Array(t1.size).fill(t2)
-    }else if (t1 instanceof Val && t1.size === 1 && t2 instanceof Val) {
-        t1shape = t2.shape
-        t1data = new Float64Array(t2.size).fill(t1.data[0])
-    }else if(t2 instanceof Val && t2.size === 1 && t1 instanceof Val) {
-        t2shape = t1.shape
-        t2data = new Float64Array(t1.size).fill(t2.data[0])
+    }else if (t1 instanceof Val && t2 instanceof Val) {
+        if (t1.size === 1) {    // [1] & [3,4] 
+            t1shape = t2.shape
+            t1data = new Float64Array(t2.size).fill(t1.data[0])
+        } else if(t2.size === 1) {      // [3,4] & [1]
+            t2shape = t1.shape
+            t2data = new Float64Array(t1.size).fill(t2.data[0])
+        } else if(t1.shape[0] === t2.shape[0]) {
+            if (t1.shape[1] === 1) {    // [4,1] & [4,3]
+                t1shape = t2.shape
+                t1data = new Float64Array(t2.size)
+                for(let i=0; i<t2.size; i++) {
+                    t1data[i] = t1.data[Math.floor(i/t1.shape[0])]
+                }
+            } else if(t2.shape[1] === 1) {     // [4,3] & [4,1]
+                t2shape = t1.shape
+                t2data = new Float64Array(t1.size)
+                for(let i=0; i<t1.size; i++) {
+                    t2data[i] = t2.data[Math.floor(i/t1.shape[1])]
+                }
+            }
+        } else if (t1.shape[1] === t2.shape[1]) {
+            if (t1.shape[0] === 1) {    // [1,4] & [3,4]
+                t1shape = t2.shape
+                t1data = new Float64Array(t2.size)
+                for(let i=0; i<t2.size; i++) {
+                    t1data[i] = t1.data[i%t1.shape[1]]
+                }
+            } else if(t2.shape[0] === 1) {     // [3,4] & [1,4]
+                t2shape = t1.shape
+                t2data = new Float64Array(t1.size)
+                for(let i=0; i<t1.size; i++) {
+                    t2data[i] = t2.data[i%t2.shape[1]]
+                }
+            }
+        }
     }
     let t1_ = t1
     let t2_ = t2
@@ -70,7 +100,7 @@ export function dot(t1: Val, t2: Val) : Val {
     }
 
     const t1Inner = (t1.dim === 1 ? t1.size : t1.shape[1]);
-    const t2Inner = (t2.dim === 1 ? t2.size : t2.shape[0]);    
+    const t2Inner = (t2.dim === 1 ? t2.size : t2.shape[0]);
     assert(t1Inner === t2Inner, ()=> `In dot: inner dimensions didn't match. dimensioins got: ${t1Inner} and ${t2Inner}`)
     
     let t1_ = t1
@@ -183,6 +213,15 @@ export function div(t: Val, num: number) : Val {
     return x
 }
 
+export function divElementWise(t1: Val, t2: Val) : Val {
+    assert(t1.dim === t2.dim, ()=> `In element wise division: Both matrices must have the same dim. got t1dim: ${t1.dim} and t2dim: ${t2.dim}`)
+    assert(t1.shape.every((dimension, index) => dimension == t2.shape[index]), () => 'In addition: Both matrices must have the same shape')
+
+    let res = new Val(t1.shape)
+    res.data = t1.data.map((num: number, idx: number)=>num / t2.data[idx])
+    return res
+}
+
 export function negate(t: Val) : Val {
     let x = new Val(t.shape)
     x.data = t.data.map((k:number) => -k)
@@ -207,7 +246,36 @@ export function log(t: Val) : Val {
     return x
 }
 
-export function sum(t: Val) : Val {
+export function sum(t: Val, axis?: number, keepdims?: boolean) : Val {
+    // TODO: add support for axis and keepdims
+
+    // axis === 0 (down columns) aka (5,3) => (1,3)
+    if (keepdims && axis === 0 && t.shape.length === 2) {
+        const [rows, cols] = t.shape;
+        const x = new Val([1, cols]);
+        for(let col = 0; col < cols; col++) {
+            let sum_ = 0
+            for(let row = 0; row < rows; row++) {
+                sum_ += t.data[row * cols + col]
+            }
+            x.data[col] = sum_;
+        }
+        return x
+    }
+    
+    // axis === 1 (across rows) aka (5,3) => (5,1)
+    if (keepdims && axis === 1 && t.shape.length === 2) {
+        const [rows, cols] = t.shape
+        const x = new Val([rows, 1])
+        for (let i=0; i<rows; i++) {
+            let sum_ = 0
+            for(let j=0; j<cols; j++) {
+                sum_ += t.data[i*cols + j]
+            }
+            x.data[i] = sum_
+        }
+        return x
+    }
     let x = new Val([1])
     x.data = [t.data.reduce((a: number, c: number)=> a+c)]
     return x

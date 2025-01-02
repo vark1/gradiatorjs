@@ -1,46 +1,12 @@
-import { activationfn } from '../../activations.js'
-import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, imgToVector } from '../../utils/utils_data.js'
+import { sigmoid } from '../../activations.js'
+import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../utils/utils_data.js'
 import { add, mul, sum, log, dot, div, mean, abs, sub } from '../../Val/ops.js'
 import { Val } from '../../Val/val.js'
-
-export function prepare_dataset() {
-
-    // shape of dataset: (m, 64, 64, 3)
-    let train_set_x = (<any>DATASET_HDF5_TRAIN).get('train_set_x')
-    let train_x_og = new Val(train_set_x.shape)
-    train_x_og.data = Float64Array.from(train_set_x.value)
-
-    let train_set_y = (<any>DATASET_HDF5_TRAIN).get('train_set_y')    
-    let train_y_og = new Val(train_set_y.shape)
-    train_y_og.data = Float64Array.from(train_set_y.value)
-
-    let test_set_x = (<any>DATASET_HDF5_TEST).get('test_set_x')
-    let test_x_og = new Val(test_set_x.shape)
-    test_x_og.data = Float64Array.from(test_set_x.value)
-
-    let test_set_y = (<any>DATASET_HDF5_TEST).get('test_set_y')
-    let test_y_og = new Val(test_set_y.shape)
-    test_y_og.data = Float64Array.from(test_set_y.value)
-
-    let classes = (<any>DATASET_HDF5_TEST).get("list_classes")
-    train_y_og = train_y_og.reshape([1, train_y_og.shape[0]])
-    test_y_og = test_y_og.reshape([1, test_y_og.shape[0]])
-
-    console.log(`# Training examples: ${train_x_og.shape[0]}`)
-    console.log(`# Testing examples: ${test_x_og.shape[0]}`)
-    
-    let train_x_flatten = train_x_og.reshape([train_x_og.shape[0], train_x_og.size/train_x_og.shape[0]]).T
-    let test_x_flatten = test_x_og.reshape([test_x_og.shape[0], test_x_og.size/test_x_og.shape[0]]).T
-    
-    let train_x = div(train_x_flatten, 255)
-    let test_x = div(test_x_flatten, 255)
-    return [train_x, train_y_og, test_x, test_y_og]
-}
 
 function propagate(w: Val, b: Val, X: Val, Y: Val) : [{dw: Val; db: Val}, Val]{
     let m = X.shape[1]
     let z = add(dot(w.T, X), b)
-    let A = activationfn(z, 'sigmoid')
+    let A = sigmoid(z)
 
     // cost = -1/m * sum(Y*log(A) + (1-Y)*log(1-A))
     let cost = mul(-1/m, sum(add(mul(Y,log(A)), mul(sub(1, Y), log(sub(1, A))))))
@@ -89,8 +55,7 @@ function predict(w: Val, b: Val, X: Val) : Val {
     let m = X.shape[1]
     let Y_prediction = new Val([1, m])
     w = w.reshape([X.shape[0], 1])
-
-    let A = activationfn(add(dot(w.T, X), b), 'sigmoid')
+    let A = sigmoid(add(dot(w.T, X), b))
 
     for (let i=0; i<A.shape[1]; i++) {
         if(A.data[i] > 0.5) {

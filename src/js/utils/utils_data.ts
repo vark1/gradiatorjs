@@ -1,3 +1,6 @@
+import { Val } from "../Val/val";
+import * as ops from '../Val/ops'
+
 export let DATASET_HDF5_TRAIN = null;
 export let DATASET_HDF5_TEST = null;
 
@@ -40,6 +43,40 @@ export function loadData() {
     };
     reader.readAsArrayBuffer(file);
     file_input.value = "";
+}
+
+export function prepare_dataset() {
+
+    // shape of dataset: (m, 64, 64, 3)
+    let train_set_x = (<any>DATASET_HDF5_TRAIN).get('train_set_x')
+    let train_x_og = new Val(train_set_x.shape)
+    train_x_og.data = Float64Array.from(train_set_x.value)
+
+    let train_set_y = (<any>DATASET_HDF5_TRAIN).get('train_set_y')    
+    let train_y_og = new Val(train_set_y.shape)
+    train_y_og.data = Float64Array.from(train_set_y.value)
+
+    let test_set_x = (<any>DATASET_HDF5_TEST).get('test_set_x')
+    let test_x_og = new Val(test_set_x.shape)
+    test_x_og.data = Float64Array.from(test_set_x.value)
+
+    let test_set_y = (<any>DATASET_HDF5_TEST).get('test_set_y')
+    let test_y_og = new Val(test_set_y.shape)
+    test_y_og.data = Float64Array.from(test_set_y.value)
+
+    let classes = (<any>DATASET_HDF5_TEST).get("list_classes")
+    train_y_og = train_y_og.reshape([1, train_y_og.shape[0]])
+    test_y_og = test_y_og.reshape([1, test_y_og.shape[0]])
+
+    console.log(`# Training examples: ${train_x_og.shape[0]}`)
+    console.log(`# Testing examples: ${test_x_og.shape[0]}`)
+    
+    let train_x_flatten = train_x_og.reshape([train_x_og.shape[0], train_x_og.size/train_x_og.shape[0]]).T
+    let test_x_flatten = test_x_og.reshape([test_x_og.shape[0], test_x_og.size/test_x_og.shape[0]]).T
+    
+    let train_x = ops.div(train_x_flatten, 255)
+    let test_x = ops.div(test_x_flatten, 255)
+    return [train_x, train_y_og, test_x, test_y_og]
 }
 
 document.addEventListener('DOMContentLoaded', function () {

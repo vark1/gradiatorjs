@@ -1,4 +1,5 @@
 import { assert } from "../utils/utils.js";
+import { gaussianRandom } from "../utils/utils_num.js";
 
 /* Everything in the neural net will be made of Val. */
 export class Val{
@@ -92,10 +93,11 @@ export class Val{
 
     clone() : Val {
         let x = new Val([...this.shape])
-        x.data = this.data
+        x.data = new Float64Array(this.data);
         x.size = this.size
         return x
     }
+
     get T() : Val {
         if(this.dim === 1) return this;
         assert(this.dim === 2, () => 'transpose only supports 2D arrays');
@@ -122,5 +124,13 @@ export class Val{
         let result = new Val(newShape)
         result.data = this.data
         return result
+    }
+
+    randn() : Val{
+        let x = new Val(this.shape)
+        for (let i=0; i<this.size; i++) {
+            x.data[i] = gaussianRandom()
+        }
+        return x
     }
 }
