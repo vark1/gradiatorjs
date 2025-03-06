@@ -4,9 +4,14 @@
         "target": "ES6",
         "lib": ["es2016", "dom"],
         "moduleResolution": "node",
-        "allowJs": true,            
+        "allowJs": true, 
         "checkJs": false,
         "outDir": "./dist",
+        "rootDir": "./",
+        "baseUrl": "./",
+        "paths": {
+            "*": ["src/js/*"]
+        },
         "declaration": true,
         "sourceMap": true,
         "forceConsistentCasingInFileNames": true,
@@ -17,10 +22,11 @@
         { "jsfive": "jsfive" }
     ],
     "exclude": [
-        // "src/js/utils/utils_data.js",
         "node_modules"
     ],
     "include": [
-        "src/**/*.ts" 
-, "jsfive.d.ts"    ],
+        "src/**/*.ts",
+        "demos/**/*.ts",
+        "jsfive.d.ts"
+    ],
 }

@@ -1,8 +1,7 @@
-import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../utils/utils_data.js'
-import { Val } from '../../Val/val.js'
-import * as ops from '../../Val/ops.js'
-import { assert } from '../../utils/utils.js'
-import { relu, reluBackward, sigmoid, sigmoidBackward, tanh } from '../../activations.js'
+import { Val } from "../../src/js/Val/val.js"
+import * as fn from '../deep_nn/deep_nn.js'
+
+// TODO: Change console.log to assert
 
 interface dynamicObject {
     [key: string]: Val
@@ -10,147 +9,9 @@ interface dynamicObject {
 
 interface cacheObject {A: Val, W: Val, b: Val}
 
-function initializeParamsDeep(layer_dims: number[]) {
-    let parameters : dynamicObject = {}
-    let L = layer_dims.length
-    
-    for (let l=1; l<L; l++) {
-        parameters['W' + l.toString()] = ops.mul(new Val([layer_dims[l], layer_dims[l-1]]).randn(), 0.01)
-        parameters['b' + l.toString()] = ops.mul(new Val([layer_dims[l], 1]), 0.01)
-        
-        assert(JSON.stringify(parameters['W' + l.toString()].shape) == JSON.stringify([layer_dims[l], layer_dims[l - 1]]), ()=>'')
-        assert(JSON.stringify(parameters['b' + l.toString()].shape) == JSON.stringify([layer_dims[l], 1]), ()=>'dasdas')
-
-    }
-    return parameters
-}
-
-function linearForward(A: Val, W: Val, b: Val): [Val, cacheObject]{
-    let Z = ops.add(ops.dot(W, A), b)
-    let cache = {A, W, b}
-    return [Z, cache]
-}
-
-function linearActivationForward(
-    A_prev: Val, 
-    W: Val, 
-    b: Val, 
-    activation: "relu" | "sigmoid" | "tanh"
-): [Val, [cacheObject, Val]]{
-    let [Z, linear_cache] = linearForward(A_prev, W, b)
-    let A: Val
-    let activation_cache = Z.clone()
-    if (activation === 'relu') {
-        A = relu(Z)
-    }else if (activation === 'sigmoid') {
-        A = sigmoid(Z)
-    }else {
-        A = tanh(Z)
-    }    
-    let cache: [cacheObject, Val] = [linear_cache, activation_cache]
-
-    return [A, cache]
-}
-
-function LModelForward(X: Val, parameters: dynamicObject) {
-    let caches = []
-    let A = X.clone()
-    let num_layers = Math.floor(Object.keys(parameters).length/2)
-
-    for (let l=1; l<num_layers; l++) {
-        let A_prev = A.clone()
-        let cache: [cacheObject, Val]
-        [A, cache] = linearActivationForward(
-            A_prev, 
-            parameters['W' + l.toString()], 
-            parameters['b' + l.toString()], 
-            'relu'
-        )
-        caches.push(cache)
-    }
-
-    let [AL, cache] = linearActivationForward(
-        A, 
-        parameters['W' + num_layers.toString()], 
-        parameters['b' + num_layers.toString()], 
-        'sigmoid'
-    )
-    caches.push(cache)
-
-    return [AL, caches]
-}
-
-function computeCost(AL: Val, Y: Val) {
-    let m = Y.shape[1]
-    let cost = ops.mul(-1/m, ops.sum(ops.add(ops.mul(Y, ops.log(AL)), ops.mul(ops.sub(1, Y), ops.log(ops.sub(1, AL))))))
-    // TODO: squeeze the cost, to make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
-    return cost
-}
-
-function linearBackward(dZ: Val, cache: cacheObject) {
-    let {A, W, b} = cache
-    let A_prev = A
-    let m = A_prev.shape[1]
-    let dW = ops.mul(1/m, ops.dot(dZ, A_prev.T))
-    let db = ops.mul(1/m, ops.sum(dZ, 1, true))
-    let dA_prev = ops.dot(W.T, dZ)
-    
-    return [dA_prev, dW, db]
-}
-
-function linearActivationBackward(dA: Val, cache: [cacheObject, Val], activation: "sigmoid" | "relu" ): Val[] {
-    let [linear_cache, activation_cache] = cache
-    let dZ, dA_prev, dW, db
-    if(activation === "relu") {
-        dZ = reluBackward(dA, activation_cache);
-        [dA_prev, dW, db] = linearBackward(dZ, linear_cache)
-    } else if(activation === "sigmoid") {
-        dZ = sigmoidBackward(dA, activation_cache);
-        [dA_prev, dW, db] = linearBackward(dZ, linear_cache)
-    } else {
-        throw new Error("Invalid activation type")
-    }
-    return [dA_prev, dW, db]
-}
-
-function LModelBackward(AL: Val, Y: Val, caches: [cacheObject, Val][]) {
-    let grads : dynamicObject = {}
-    let L = caches.length
-    let m = AL.shape[1]
-    Y = Y.reshape(AL.shape)
-
-    let dAL = ops.negate(ops.sub(ops.divElementWise(Y, AL), ops.divElementWise(ops.sub(1,Y), ops.sub(1, AL))))
-
-    let current_cache: [cacheObject, Val] = caches[L-1]
-    let [dA_prev_temp, dW_temp, db_temp] = linearActivationBackward(dAL, current_cache, 'sigmoid')
-    grads['dA' + (L-1).toString()] = dA_prev_temp;
-    grads['dW' + (L).toString()] = dW_temp;
-    grads['db' + (L).toString()] = db_temp;
-    
-    for (let l=L-2; l>=0; l--) {
-        current_cache = caches[l];
-        [dA_prev_temp, dW_temp, db_temp] = linearActivationBackward(dA_prev_temp, current_cache, 'relu');
-        grads['dA' + (l).toString()] = dA_prev_temp;
-        grads['dW' + (l+1).toString()] = dW_temp;
-        grads['db' + (l+1).toString()] = db_temp;
-    }
-    return grads
-}
-
-function updateParameters(params: dynamicObject, grads: dynamicObject, learning_rate: number) {
-    let parameters = { ...params };
-    let num_layers = Math.floor(Object.keys(parameters).length/2)
-
-    for (let l=0; l<num_layers; l++) {
-        parameters['W' + (l+1).toString()] = ops.sub(parameters['W' + (l+1).toString()], ops.mul(learning_rate, grads['dW' + (l+1).toString()]));
-        parameters['b' + (l+1).toString()] = ops.sub(parameters['b' + (l+1).toString()], ops.mul(learning_rate, grads['db' + (l+1).toString()]));
-    }
-    return parameters
-}
-
 // TESTS
 function initializeParamsDeep_TEST() {
-    let parameters = initializeParamsDeep([5,4,3])
+    let parameters = fn.initializeParams([5,4,3])
     console.log(parameters)
 }
 
@@ -162,7 +23,7 @@ function linearForward_TEST() {
     t_W.data = [[ 1.74481176, -0.7612069, 0.3190391 ]]
     t_b.data = [[-0.24937038]]
     
-    let [Z, linear_cache] = linearForward(t_A, t_W, t_b)
+    let [Z, linear_cache] = fn.linearForward(t_A, t_W, t_b)
     console.log(Z)  // should be Z = [[ 3.26295337 -1.23429987]]
     console.log("________________________________________________________________")
     console.log(linear_cache)
@@ -176,13 +37,13 @@ function linearActivationForward_TEST() {
     t_W.data = [[ 0.50288142, -1.24528809, -1.05795222]]
     t_b.data = [[-0.90900761]]
 
-    let [t_A1, t_linear_activation_cache1] = linearActivationForward(t_A_prev, t_W, t_b, "sigmoid")
+    let [t_A1, t_linear_activation_cache1] = fn.linearActivationForward(t_A_prev, t_W, t_b, "sigmoid")
     console.log("With sigmoid")
     console.log(t_A1)   // should be [[0.96890023 0.11013289]]
     
     console.log("________________________________________________________________")
 
-    let [t_A2, t_linear_activation_cache2] = linearActivationForward(t_A_prev, t_W, t_b, "relu")
+    let [t_A2, t_linear_activation_cache2] = fn.linearActivationForward(t_A_prev, t_W, t_b, "relu")
     console.log("With relu")
     console.log(t_A2)   // should be [[3.43896131 0.        ]]
 }
@@ -229,7 +90,7 @@ function LModelForward_TEST() {
         "b3": b3,
     }
 
-    let [AL, caches] = LModelForward(X, parameters)
+    let [AL, caches] = fn.LModelForward(X, parameters)
     console.log(AL) // should be AL = [[0.03921668 0.70498921 0.19734387 0.04728177]]
 }
 
@@ -239,7 +100,7 @@ function computeCost_TEST() {
     let aL = new Val([1,3])
     aL.data = [[.8,.9,0.4]]
     
-    console.log(computeCost(aL, Y))
+    console.log(fn.computeCost(aL, Y))
 }
 
 function linearBackward_TEST() {
@@ -268,7 +129,7 @@ function linearBackward_TEST() {
 
     let linear_cache = {A, W, b}
 
-    let [dA_prev, dW, db] = linearBackward(dZ, linear_cache)
+    let [dA_prev, dW, db] = fn.linearBackward(dZ, linear_cache)
     console.log(dA_prev)
     console.log(dW)
     console.log(db)
@@ -312,8 +173,8 @@ function linearActivationBackward_TEST() {
     let linear_cache : cacheObject = {A, W, b}
     let linear_activation_cache : [cacheObject, Val] = [linear_cache, Z]
 
-    let [dA_prev_1, dW_1, db_1] = linearActivationBackward(dA, linear_activation_cache, 'sigmoid')
-    let [dA_prev_2, dW_2, db_2] = linearActivationBackward(dA, linear_activation_cache, 'relu')
+    let [dA_prev_1, dW_1, db_1] = fn.linearActivationBackward(dA, linear_activation_cache, 'sigmoid')
+    let [dA_prev_2, dW_2, db_2] = fn.linearActivationBackward(dA, linear_activation_cache, 'relu')
 
     console.log(dA_prev_1, dW_1, db_1)
     /*
@@ -384,7 +245,7 @@ function LModelBackward_TEST() {
     let linear_cache_activation_2: [cacheObject, Val] = [{A: A2, W: W2, b: b2}, Z2];
     let caches = [linear_cache_activation_1, linear_cache_activation_2]
 
-    let grads = LModelBackward(AL, Y, caches)
+    let grads = fn.LModelBackward(AL, Y, caches)
     console.log(grads)
 
     /*
@@ -443,10 +304,8 @@ function updateParameters_TEST() {
 
     let parameters = {"W1": W1, "b1": b1, "W2": W2, "b2": b2}
     let grads = {"dW1": dW1, "db1": db1, "dW2": dW2, "db2": db2}
-    let new_params = updateParameters(parameters, grads, 0.1)
+    let new_params = fn.updateParameters(parameters, grads, 0.1)
 
     console.log(new_params)
 
 }
-
-updateParameters_TEST()

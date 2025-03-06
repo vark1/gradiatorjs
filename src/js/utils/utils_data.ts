@@ -1,5 +1,5 @@
-import { Val } from "../Val/val";
-import * as ops from '../Val/ops'
+import { Val } from "../Val/val.js";
+import * as ops from '../Val/ops.js'
 
 export let DATASET_HDF5_TRAIN = null;
 export let DATASET_HDF5_TEST = null;
