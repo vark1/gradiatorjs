@@ -8,11 +8,32 @@
     <script src="/dist/src/js/vis/vis.js"></script>
 </head>
 <body>
-    <canvas id="nn-canvas" width="800" height="600"></canvas>
     <div id="toolbar">
-        <button id="add-dense">Add dense layer</button>
-        <button id="add-conv">Add conv layer</button>
-        <button id="add-output">Add output layer</button>
+        <button id="add-dense">+dense</button>
+        <button id="add-conv">+conv</button>
+        <button id="add-output">+output</button>
+    </div>
+
+    <div class="viewport">
+        <div class="network-container" id="network-container">
+            <!--Layers are added here-->
+        </div>
+    </div>
+
+    <div id="context-menu" class="context-menu">
+        <div class="menu-item">
+            <label>Neurons:</label>
+            <input type="number" id="neurons-input" min="1" value="64">
+        </div>
+        <div class="menu-item">
+            <label>Activation:</label>
+            <select id="activation-select">
+                <option>relu</option>
+                <option>sigmoid</option>
+                <option>tanh</option>
+            </select>
+        </div>
+        <button onclick="applyLayerChanges()">Apply</button>
     </div>
 </body>
 </html>
