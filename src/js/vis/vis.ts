@@ -4,34 +4,48 @@ import { getLayerColor, LayerType, NNLayer, NetworkConfig } from "./vis_utils.js
 class NeuralNetworkVisualizer {
     private container: HTMLElement;
     private layers: NNLayer[] = [];
-    private context_menu: HTMLElement;
     private selected_layer: NNLayer | null = null;
+    private configuration_panel: HTMLElement;
+    private configuration_content: HTMLElement;
+    private placeholder: HTMLElement;
 
     constructor() {
         this.container = document.getElementById('network-container')!;
-        this.context_menu = document.getElementById('context-menu')!;
+        this.configuration_panel = document.getElementById('configuration-panel')!;
+        this.configuration_content = document.getElementById('configuration-content')!;
+        this.placeholder = this.configuration_content.querySelector('.placeholder')!;
 
-        this.setupToolbar();
-        this.setupContextmenu();
-        
-        // hide context menu when clicking outside
         document.addEventListener('click', (e)=> {
-            if (!this.context_menu.contains(e.target as Node)) this.hideContextMenu();
-        });
+            // To ignore clicks inside the configuration panel
+            if (this.configuration_panel.contains(e.target as Node)) {
+                return;
+            }
 
-        // hide context menu when right-clicking outside layers
-        document.addEventListener('contextmenu', (e)=> {
-            if(!(e.target as HTMLElement).closest('.layer')) this.hideContextMenu();
-        });
+            const layer_element = (e.target as HTMLElement).closest('.layer') as HTMLElement | null;
+            if(layer_element) {
+                this.selectLayer(layer_element.dataset.id!);
+            } else {
+                this.deselectLayer();
+            }
+        })
+
+        this.setupDocument();
     }
 
-    private setupToolbar() {
+    private createLayerElement(type:LayerType, neurons:number, activation:string): HTMLElement {
+        const layer_element = document.createElement('div');
+        layer_element.className = `layer ${type}`
+        layer_element.textContent = `${type}\n${neurons}n\n${activation}`;
+        layer_element.style.background = getLayerColor(type)
+        layer_element.dataset.id = `layer-${Date.now()}`;
+        
+        return layer_element
+    }
+
+    private setupDocument() {
         document.getElementById('add-dense')?.addEventListener('click', ()=> this.addLayer('dense'));
         document.getElementById('add-conv')?.addEventListener('click', ()=> this.addLayer('conv'));
         document.getElementById('add-output')?.addEventListener('click', ()=> this.addLayer('output'));
-    }
-
-    private setupContextmenu() {
         document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges())
         document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer())
     }
@@ -44,11 +58,7 @@ class NeuralNetworkVisualizer {
             return;
         }
 
-        const layer_element = document.createElement('div');
-        layer_element.className = `layer ${type}`
-        layer_element.textContent = `${type}\n${neurons}n\n${activation}`;
-        layer_element.style.background = getLayerColor(type)
-        layer_element.dataset.id = `layer-${Date.now()}`;
+        const layer_element = this.createLayerElement(type, neurons, activation)
 
         const new_layer: NNLayer = {
             id: `layer-${Date.now()}`,
@@ -58,14 +68,8 @@ class NeuralNetworkVisualizer {
             element: layer_element
         };
 
-        layer_element.addEventListener('contextmenu', (e)=> {
-            e.preventDefault();
-            this.showContextMenu(e, new_layer);
-        });
-
         this.layers.push(new_layer)
         this.container.appendChild(layer_element);
-
     }
 
     deleteSelectedLayer() {
@@ -73,7 +77,7 @@ class NeuralNetworkVisualizer {
 
         if(confirm('Are you sure you want to delete this layer?')) {
             this.removeLayer(this.selected_layer.id);
-            this.hideContextMenu();
+            this.deselectLayer();
         }
     }
 
@@ -87,25 +91,40 @@ class NeuralNetworkVisualizer {
         this.layers.splice(layer_index, 1);
     }
 
-    private showContextMenu(e: MouseEvent, layer: NNLayer) {
-        e.preventDefault();
+    private selectLayer(layer_id: string) {
+        const layer = this.layers.find(l=>l.id===layer_id);
+        if (!layer) return;
+
         this.selected_layer = layer;
 
-        // disabling neuron count for output layer
-        const neurons_input = document.getElementById('neurons-input') as HTMLInputElement;
-        neurons_input.disabled = layer.type === 'output';
+        this.layers.forEach(l=>l.element.classList.remove('selected'));
+        layer.element.classList.add('selected');
 
-        (document.getElementById('neurons-input') as HTMLInputElement).value = layer.neurons.toString();
-        (document.getElementById('activation-select') as HTMLSelectElement).value = layer.activation;
-
-        this.context_menu.style.display = 'block'
-        this.context_menu.style.left = `${e.pageX}px`;
-        this.context_menu.style.top = `${e.pageY}px`;
+        this.updateConfigurationPanel(layer);
     }
 
-    private hideContextMenu() {
-        this.context_menu.style.display = 'none';
+    private deselectLayer() {
         this.selected_layer = null;
+        this.layers.forEach(l=>l.element.classList.remove('selected'));
+
+        this.placeholder.style.display = 'block';
+        this.configuration_content.querySelectorAll('.form-group, button').forEach(el=> {
+            (el as HTMLElement).style.display = 'none'
+        })
+    }
+
+    private updateConfigurationPanel(layer: NNLayer) {
+        const neurons_input = document.getElementById('neurons-input') as HTMLInputElement;
+        const activation_select = document.getElementById('activation-select') as HTMLSelectElement
+        
+        neurons_input.value = layer.neurons.toString();
+        neurons_input.disabled = layer.type === 'output';
+        activation_select.value = layer.activation;
+        
+        this.placeholder.style.display = 'none';
+        this.configuration_content.querySelectorAll('.form-group, button').forEach(el => {
+            (el as HTMLElement).style.display = 'block';
+        });
     }
 
     private applyLayerChanges() {
@@ -117,8 +136,6 @@ class NeuralNetworkVisualizer {
         this.selected_layer.neurons = neurons;
         this.selected_layer.activation = activation;
         this.selected_layer.element.textContent = `${this.selected_layer.type}\n${neurons}n \n${activation}`;
-
-        this.hideContextMenu();
     }
 
     getNetworkConfig(): NetworkConfig {

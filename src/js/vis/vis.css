@@ -13,6 +13,12 @@
     justify-content: center;
 }
 
+.hidden {
+    display: none;
+}
+
+/* -----------------------LAYER start-----------------------*/
+
 .layer {
     position: relative;
     border-radius: 5px;
@@ -27,7 +33,6 @@
     text-align: center;
     display: inline-block;
     margin-bottom: 5px;
-
 }
 
 .layer:not(:first-child) {
@@ -44,37 +49,14 @@
     z-index: 1;
 }
 
+/* -----------------------LAYER end-----------------------*/
+
 #toolbar {
     top: 20px;
     left: 20px;
     background: white;
     padding: 10px;
     border: 1px solid #ccc;
-}
-
-.context-menu {
-    position: fixed;
-    background: white;
-    border: 1px solid #ccc;
-    padding: 10px;
-    display: none;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-    z-index: 10;
-}
-
-.context-menu button {
-    display: block;
-    width: 100%;
-    padding: 5px;
-    margin: 5px 0;
-    text-align: center;
-    background: #f5f5f5;
-    border: 1px solid #ccc;
-    cursor: pointer;
-}
-
-.context-menu button:hover {
-    background: #e0e0e0;
 }
 
 #delete-selected-layer {
@@ -90,3 +72,60 @@
 #neurons-input {
     width: 50px;
 }
+
+/* -----------------------Configuration panel start-----------------------*/
+
+.configuration-panel {
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 20px;
+    width: 250px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.configuration-panel h3 {
+    margin-top: 0;
+}
+
+.configuration-panel .placeholder {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+.configuration-panel .form-group {
+    margin-bottom: 15px;
+}
+
+.configuration-panel .form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.configuration-panel .form-group input,
+.configuration-panel .form-group select {
+    width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.configuration-panel button {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+.configuration-panel button.delete {
+    background: #ff4444;
+    color: white;
+    border-color: #cc0000;
+}
+
+.configuration-panel button.delete:hover {
+    background: #cc0000;
+}
+
+/* -----------------------Configuration panel end-----------------------*/

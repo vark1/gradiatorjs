@@ -20,21 +20,28 @@
         </div>
     </div>
 
-    <div id="context-menu" class="context-menu">
-        <div class="menu-item">
-            <label>Neurons:</label>
-            <input type="number" id="neurons-input" min="1" value="64">
+    <div class="configuration-panel" id="configuration-panel">
+        <h3>Layer Configuration</h3>
+        <div id="configuration-content">
+            <p class="placeholder">Select a layer to configure.</p>
+            <div class="form-group hidden">
+                <label for="neurons-input">Neurons:</label>
+                <input type="number" id="neurons-input" min="1" value="64">
+            </div>
+        
+            <div class="form-group hidden">
+                <label for="activation-select">Activation:</label>
+                <select id="activation-select">
+                    <option>relu</option>
+                    <option>sigmoid</option>
+                    <option>tanh</option>
+                </select>
+            </div>
+        
+            <button class="hidden" id="apply-layer-changes">Apply</button>
+            <button class="hidden" id="delete-selected-layer">Delete layer</button>
         </div>
-        <div class="menu-item">
-            <label>Activation:</label>
-            <select id="activation-select">
-                <option>relu</option>
-                <option>sigmoid</option>
-                <option>tanh</option>
-            </select>
-        </div>
-        <button id="apply-layer-changes">Apply</button>
-        <button id="delete-selected-layer">Delete layer</button>
+
     </div>
 </body>
 </html>
