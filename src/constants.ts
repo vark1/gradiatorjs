@@ -1,0 +1,2 @@
+const MAX_LAYERS = 10
+const MAX_NEURONS = 64

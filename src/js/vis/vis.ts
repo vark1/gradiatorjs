@@ -1,14 +1,5 @@
 // import { DATASET_HDF5_TRAIN, DATASET_HDF5_TEST, prepare_dataset } from "utils/utils_data";
-
-interface NNLayer {
-    id: string;
-    type: LayerType;
-    neurons: number;
-    activation: string;
-    element: HTMLElement;
-}
-
-type LayerType = 'input' | 'dense' | 'conv' | 'output';
+import { getLayerColor, LayerType, NNLayer, NetworkConfig } from "./vis_utils.js";
 
 class NeuralNetworkVisualizer {
     private container: HTMLElement;
@@ -21,22 +12,17 @@ class NeuralNetworkVisualizer {
         this.context_menu = document.getElementById('context-menu')!;
 
         this.setupToolbar();
+        this.setupContextmenu();
+        
+        // hide context menu when clicking outside
+        document.addEventListener('click', (e)=> {
+            if (!this.context_menu.contains(e.target as Node)) this.hideContextMenu();
+        });
 
-        document.addEventListener('click', ()=> this.hideContextMenu());
-        document.onclick
+        // hide context menu when right-clicking outside layers
         document.addEventListener('contextmenu', (e)=> {
             if(!(e.target as HTMLElement).closest('.layer')) this.hideContextMenu();
         });
-    }
-
-    private getLayerColor(type: LayerType): string {
-        const colors = {
-            input: '#4CAF50',
-            dense: '#2196F3',
-            conv: '#FF9800',
-            output: '#F44336'
-        };
-        return colors[type] || '#999';
     }
 
     private setupToolbar() {
@@ -45,18 +31,30 @@ class NeuralNetworkVisualizer {
         document.getElementById('add-output')?.addEventListener('click', ()=> this.addLayer('output'));
     }
 
-    addLayer(type: LayerType, neurons: number = 64) {
+    private setupContextmenu() {
+        document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges())
+        document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer())
+    }
+
+    addLayer(type: LayerType, neurons: number = 64, activation: string = 'relu') {
+        // check if the last added layer was an output layer
+        const last_layer = this.layers[this.layers.length-1];
+        if(last_layer?.type === 'output') {
+            alert("Cannot add layers after the output layer. If you want to add more layers, please remove the output layer first");
+            return;
+        }
+
         const layer_element = document.createElement('div');
         layer_element.className = `layer ${type}`
-        layer_element.textContent = `${type}\n${neurons}n`;
-        
-        layer_element.style.background = this.getLayerColor(type)
+        layer_element.textContent = `${type}\n${neurons}n\n${activation}`;
+        layer_element.style.background = getLayerColor(type)
+        layer_element.dataset.id = `layer-${Date.now()}`;
 
         const new_layer: NNLayer = {
             id: `layer-${Date.now()}`,
             type,
             neurons,
-            activation: 'relu',
+            activation: activation,
             element: layer_element
         };
 
@@ -67,11 +65,35 @@ class NeuralNetworkVisualizer {
 
         this.layers.push(new_layer)
         this.container.appendChild(layer_element);
+
+    }
+
+    deleteSelectedLayer() {
+        if (!this.selected_layer) return;
+
+        if(confirm('Are you sure you want to delete this layer?')) {
+            this.removeLayer(this.selected_layer.id);
+            this.hideContextMenu();
+        }
+    }
+
+    private removeLayer(layer_id: string) {
+        const layer_index = this.layers.findIndex(layer => layer.id === layer_id);
+        if (layer_index === -1) return; //layer not found
+
+        const layer_element = this.layers[layer_index].element;
+        this.container.removeChild(layer_element);
+
+        this.layers.splice(layer_index, 1);
     }
 
     private showContextMenu(e: MouseEvent, layer: NNLayer) {
         e.preventDefault();
         this.selected_layer = layer;
+
+        // disabling neuron count for output layer
+        const neurons_input = document.getElementById('neurons-input') as HTMLInputElement;
+        neurons_input.disabled = layer.type === 'output';
 
         (document.getElementById('neurons-input') as HTMLInputElement).value = layer.neurons.toString();
         (document.getElementById('activation-select') as HTMLSelectElement).value = layer.activation;
@@ -86,7 +108,7 @@ class NeuralNetworkVisualizer {
         this.selected_layer = null;
     }
 
-    applyLayerChanges() {
+    private applyLayerChanges() {
         if (!this.selected_layer) return;
 
         const neurons = parseInt((document.getElementById('neurons-input') as HTMLInputElement).value);
@@ -97,6 +119,20 @@ class NeuralNetworkVisualizer {
         this.selected_layer.element.textContent = `${this.selected_layer.type}\n${neurons}n \n${activation}`;
 
         this.hideContextMenu();
+    }
+
+    getNetworkConfig(): NetworkConfig {
+        return {
+            layer_sizes: this.layers.map(l=>l.neurons),
+            activations: this.layers.map(l=>l.activation)
+        }
+    }
+
+    validateNetwork(): string[] {
+        const errors: string[] = [];
+        if (this.layers.length<2)   errors.push("Need atleast 2 layers");
+        if (!this.layers.some(l=>l.type === 'output')) errors.push("Missing output layer");
+        return errors;
     }
 }
 
@@ -124,3 +160,7 @@ const button = document.getElementById('run_model_btn')
 //         }
 //     });
 // }
+
+
+
+

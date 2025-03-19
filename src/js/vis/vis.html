@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="stylesheet" href="vis.css">
-    <script src="/dist/src/js/vis/vis.js"></script>
+    <script type="module" src="/dist/src/js/vis/vis.js"></script>
 </head>
 <body>
     <div id="toolbar">
@@ -33,7 +33,8 @@
                 <option>tanh</option>
             </select>
         </div>
-        <button onclick="applyLayerChanges()">Apply</button>
+        <button id="apply-layer-changes">Apply</button>
+        <button id="delete-selected-layer">Delete layer</button>
     </div>
 </body>
 </html>

@@ -191,3 +191,71 @@ if (button) {
         }
     });
 }
+
+
+/*
+function MLP(
+    train_x: Val,
+    train_y: Val,
+    config: NetworkConfig,
+    learning_rate: number,
+    iterations: number,
+    print_cost: boolean
+) {
+    const { layerSizes, activations } = config;
+    
+    // Initialize parameters
+    const parameters = initializeParameters(layerSizes);
+    
+    // Training loop
+    for (let i = 0; i < iterations; i++) {
+        // Forward propagation with activations
+        const [AL, caches] = modelForward(train_x, parameters, activations);
+        
+        // Compute cost
+        const cost = computeCost(AL, train_y);
+        
+        // Backward propagation
+        const grads = modelBackward(AL, train_y, caches, activations);
+        
+        // Update parameters
+        parameters = updateParameters(parameters, grads, learning_rate);
+        
+        if (print_cost && i % 100 === 0) {
+            console.log(`Cost after iteration ${i}: ${cost.data[0]}`);
+        }
+    }
+    return parameters;
+}
+
+function modelForward(
+    X: Val,
+    parameters: any,
+    activations: string[]
+): [Val, any[]] {
+    const caches = [];
+    let A = X;
+    
+    for (let l = 1; l < activations.length; l++) {
+        const [A_prev, W, b] = [A, parameters[`W${l}`], parameters[`b${l}`]];
+        const Z = ops.add(ops.matmul(W, A_prev), b);
+        A = applyActivation(Z, activations[l-1]);
+        caches.push([A_prev, W, b, Z]);
+    }
+    
+    return [A, caches];
+}
+
+function applyActivation(Z: Val, activation: string): Val {
+    switch (activation) {
+        case 'relu':
+            return ops.map(Z, x => relu(x));
+        case 'sigmoid':
+            return ops.map(Z, x => sigmoid(x));
+        case 'tanh':
+            return ops.map(Z, x => tanh(x));
+        default:
+            throw new Error(`Unsupported activation: ${activation}`);
+    }
+}
+*/
