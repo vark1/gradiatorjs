@@ -108,21 +108,31 @@ class NeuralNetworkVisualizer {
         this.layers.forEach(l=>l.element.classList.remove('selected'));
 
         this.placeholder.style.display = 'block';
-        this.configuration_content.querySelectorAll('.form-group, button').forEach(el=> {
-            (el as HTMLElement).style.display = 'none'
+        this.configuration_content.querySelectorAll('.layer-info, .form-group, button').forEach(el=> {
+            (el as HTMLElement).style.display = 'none';
         })
     }
 
     private updateConfigurationPanel(layer: NNLayer) {
         const neurons_input = document.getElementById('neurons-input') as HTMLInputElement;
-        const activation_select = document.getElementById('activation-select') as HTMLSelectElement
+        const activation_select = document.getElementById('activation-select') as HTMLSelectElement;
+
+        const layer_position = document.getElementById('layer-position') as HTMLElement;
+        const layer_type = document.getElementById('layer-type') as HTMLElement;
+
+        // Update layer info
+        const layer_index = this.layers.findIndex(l => l.id === layer.id);
+        layer_position.textContent = `${layer_index + 1}`
+        layer_type.textContent = layer.type;
         
+        // Update neurons and activation
         neurons_input.value = layer.neurons.toString();
         neurons_input.disabled = layer.type === 'output';
         activation_select.value = layer.activation;
         
+        // Hide placeholder and show configuration content
         this.placeholder.style.display = 'none';
-        this.configuration_content.querySelectorAll('.form-group, button').forEach(el => {
+        this.configuration_content.querySelectorAll('.layer-info, .form-group, button').forEach(el => {
             (el as HTMLElement).style.display = 'block';
         });
     }

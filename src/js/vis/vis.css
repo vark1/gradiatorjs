@@ -128,4 +128,17 @@
     background: #cc0000;
 }
 
+.layer.selected {
+    border: 2px dotted #000;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+}
+
+.layer-info {
+    margin-bottom: 15px;
+}
+
+.layer-info p {
+    margin: 5px 0;
+}
+
 /* -----------------------Configuration panel end-----------------------*/
