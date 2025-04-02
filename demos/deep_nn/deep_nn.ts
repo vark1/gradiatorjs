@@ -2,7 +2,7 @@ import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../sr
 import { Val } from '../../src/js/Val/val.js'
 import * as ops from '../../src/js/Val/ops.js'
 import { assert } from '../../src/js/utils/utils.js'
-import { relu, reluBackward, sigmoid, sigmoidBackward, tanh } from '../../src/js/activations.js'
+import { relu, sigmoid, tanh } from '../../src/js/activations.js'
 
 interface dynamicObject {
     [key: string]: Val
@@ -190,6 +190,33 @@ if (button) {
             console.log(L_layer_model)
         }
     });
+}
+
+// backward propagation for as single RELU unit
+function reluBackward (dA: Val, cache: Val) : Val {
+    let Z = cache
+    let dZ = dA.clone()
+    for(let i=0; i<Z.size; i++) {
+        if (Z.data[i]<=0) {
+            dZ.data[i] = 0
+        }
+    }
+    return dZ
+
+    // let x = new Val(dA.shape)
+    // x.data = dA.data.map((k: number) => ((k === 0 ? 0 : 1)))
+    // return [x, dA]
+}
+
+// backward propagation for a single sigmoid unit
+function sigmoidBackward(dA: Val, cache: Val) : Val {
+    let Z = cache
+    let s = ops.pow(ops.add(1, ops.exp(ops.negate(Z))), -1)
+    let dZ = ops.mul(ops.mul(dA, s), ops.sub(1, s))
+    return dZ
+    // let x = new Val(dA.shape)
+    // x.data = dA.data.map((k:number)=> (k * (1-k)))
+    // return [x, dA]
 }
 
 
