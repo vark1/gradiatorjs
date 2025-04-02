@@ -1,6 +1,6 @@
 import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../src/js/utils/utils_data.js';
 import { Val } from '../../src/js/Val/val.js'
-import { sigmoid } from '../../src/js/activations.js'
+import { sigmoid } from '../../src/js/Val/activations.js'
 import { add, mul, sum, log, dot, div, mean, abs, sub } from '../../src/js/Val/ops.js'
 
 function propagate(w: Val, b: Val, X: Val, Y: Val) : [{dw: Val; db: Val}, Val]{

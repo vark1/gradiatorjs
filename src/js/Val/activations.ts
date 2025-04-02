@@ -1,4 +1,4 @@
-import { Val } from './Val/val.js';
+import { Val } from './val.js';
 
 export function relu (Z: Val) : Val{
     let out = new Val(Z.shape)

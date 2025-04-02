@@ -1,4 +1,4 @@
-import { Val } from "Val/val";
+import { Val } from "../Val/val.js";
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {

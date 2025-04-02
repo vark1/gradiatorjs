@@ -2,7 +2,7 @@ import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../sr
 import { Val } from '../../src/js/Val/val.js'
 import * as ops from '../../src/js/Val/ops.js'
 import { assert } from '../../src/js/utils/utils.js'
-import { relu, sigmoid, tanh } from '../../src/js/activations.js'
+import { relu, sigmoid, tanh } from '../../src/js/Val/activations.js'
 
 interface dynamicObject {
     [key: string]: Val
