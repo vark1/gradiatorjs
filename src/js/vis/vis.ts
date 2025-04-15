@@ -1,7 +1,12 @@
-// import { DATASET_HDF5_TRAIN, DATASET_HDF5_TEST, prepare_dataset } from "utils/utils_data";
-import { getLayerColor, LayerType, NNLayer, NetworkConfig } from "./vis_utils.js";
+import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from "../utils/utils_data.js";
+import { getLayerColor, LayerType, NNLayer } from "./vis_utils.js";
+import { createEngineModelFromVisualizer } from "./integration.js";
+import { trainModel } from "../nn/train.js";
+import { crossEntropyLoss } from "../utils/utils_num.js";
 
-class NeuralNetworkVisualizer {
+let VISUALIZER: NeuralNetworkVisualizer;
+
+export class NeuralNetworkVisualizer {
     private container: HTMLElement;
     private layers: NNLayer[] = [];
     private selected_layer: NNLayer | null = null;
@@ -44,14 +49,14 @@ class NeuralNetworkVisualizer {
 
     private setupDocument() {
         document.getElementById('add-dense')?.addEventListener('click', ()=> this.addLayer('dense'));
-        document.getElementById('add-conv')?.addEventListener('click', ()=> this.addLayer('conv'));
         document.getElementById('add-output')?.addEventListener('click', ()=> this.addLayer('output'));
         document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges())
         document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer())
     }
 
-    addLayer(type: LayerType, neurons: number = 64, activation: string = 'relu') {
+    addLayer(type: LayerType, neurons: number = type === 'output' ? 1 : 64, activation: string = type === 'output' ? 'sigmoid': 'relu') {
         // check if the last added layer was an output layer
+        if (type === 'output') neurons = 1;
         const last_layer = this.layers[this.layers.length-1];
         if(last_layer?.type === 'output') {
             alert("Cannot add layers after the output layer. If you want to add more layers, please remove the output layer first");
@@ -127,7 +132,6 @@ class NeuralNetworkVisualizer {
         
         // Update neurons and activation
         neurons_input.value = layer.neurons.toString();
-        neurons_input.disabled = layer.type === 'output';
         activation_select.value = layer.activation;
         
         // Hide placeholder and show configuration content
@@ -148,13 +152,6 @@ class NeuralNetworkVisualizer {
         this.selected_layer.element.textContent = `${this.selected_layer.type}\n${neurons}n \n${activation}`;
     }
 
-    getNetworkConfig(): NetworkConfig {
-        return {
-            layer_sizes: this.layers.map(l=>l.neurons),
-            activations: this.layers.map(l=>l.activation)
-        }
-    }
-
     validateNetwork(): string[] {
         const errors: string[] = [];
         if (this.layers.length<2)   errors.push("Need atleast 2 layers");
@@ -163,31 +160,59 @@ class NeuralNetworkVisualizer {
     }
 }
 
-document.addEventListener('DOMContentLoaded', ()=> {
-    const visualizer = new NeuralNetworkVisualizer()
-    console.log(visualizer)
+document.addEventListener('DOMContentLoaded', () => {
+    VISUALIZER = new NeuralNetworkVisualizer()
 })
 
-const button = document.getElementById('run_model_btn')
-// if(button) {
-//     button.addEventListener('click', function() {
-//         if(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN) {
-//             const [train_x, train_y, test_x, test_y] = prepare_dataset();
-//             const network_config = visualizer.prepareNetworkConfig();
+const btn = document.getElementById('run-model-btn')
+btn?.addEventListener('click', run_model);
 
-//             const L_layer_model = MLP(
-//                 train_x,
-//                 train_y,
-//                 network_config.layers,
-//                 network_config.learning_rate,
-//                 2500,
-//                 true
-//             );
-//             console.log(L_layer_model)
-//         }
-//     });
-// }
+import { Val } from "../Val/val.js";
+import * as op from '../Val/ops.js'
+function run_model() {
 
+    // // Minimal test
+    // const a = new Val([4], 1); // Input vector [1, 1, 1, 1]
+    // a.data = Float64Array.from([1, 2, 3, 4]);
+    // const b = a.reshape([2, 2]); // Reshape
+    // const loss = op.sum(b); // Simple loss
 
+    // console.log("Minimal test: Reshaped Val 'b':", b);
+    // console.log("Minimal test: b._prev should contain 'a':", b._prev);
 
+    // loss.backward(); // Trigger backward pass
 
+    // // Check gradients AFTER backward pass
+    // console.log("Minimal test: Gradient of 'a':", a.grad);
+    // console.log("Minimal test: Gradient of 'b':", b.grad); // Should be all 1s
+    // console.log("Minimal test: Gradient of 'loss':", loss.grad);
+
+    if (!(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN)) {
+        console.error("Datasets not found. Please select a trainset and a testset");
+        return;
+    }
+
+    if (!VISUALIZER) {
+        console.error("Visulizer has not yet loaded for it to run the model.");
+        return;
+    }
+    
+    const [train_x, train_y, test_x, test_y] = prepare_dataset();
+    const nin = train_x.shape[1];   // train_x.shape = [m, nin]
+    console.log(`nin: ${nin}`)
+
+    const model = createEngineModelFromVisualizer(VISUALIZER, nin);
+
+    const LEARNING_RATE = parseFloat((document.getElementById('learning-rate') as HTMLInputElement).value) || 0.01;
+    const ITERATIONS = parseInt((document.getElementById('iterations') as HTMLInputElement).value) || 500;
+    
+    try {
+        trainModel(model, train_x, train_y, crossEntropyLoss, LEARNING_RATE, ITERATIONS, 1);
+    } catch (error) {
+        console.error("Training failed:", error);
+        return;
+    }
+
+    console.log("Training succesful.");
+    console.log(model);
+}

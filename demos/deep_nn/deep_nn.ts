@@ -224,7 +224,6 @@ function sigmoidBackward(dA: Val, cache: Val) : Val {
 function MLP(
     train_x: Val,
     train_y: Val,
-    config: NetworkConfig,
     learning_rate: number,
     iterations: number,
     print_cost: boolean

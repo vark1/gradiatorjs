@@ -15,8 +15,8 @@ export class Val{
     size: number;
 
     constructor(shape:number[], value?:number){
-        this.shape = shape
-        this.size = this.calculateSizeFromShape(this.shape)
+        this.shape = shape;
+        this.size = this.calculateSizeFromShape(this.shape);
         this._data = value? this.filled(this.size, value) : this.zeros(this.size);
         this.grad = new Float64Array(this.size);
         this._backward = ()=> {};
@@ -120,7 +120,11 @@ export class Val{
 
     clone() : Val {
         let x = new Val([...this.shape]);
-        x.data = new Float64Array(this.data);
+        x._data = Float64Array.from(this._data);
+        x._backward = this._backward;
+        x._prev = new Set(this._prev);
+        x.grad = Float64Array.from(this.grad);
+
         return x;
     }
 
@@ -152,21 +156,33 @@ export class Val{
     }
 
     reshape(newShape: number[]): Val {
-        const requiredSize = newShape.reduce((a, b) => a * b, 1);
-        assert(this.size == requiredSize, ()=>'Cannot reshape array: number of elements does not match the shape');
-        
-        let result = new Val(newShape);
+        const inferredShape = [...newShape];
+
+        const requiredSize = inferredShape.reduce((a, b) => a * b, 1);
+        assert(this.size == requiredSize, ()=>`Cannot reshape array: number of elements (${this.size}) does not match the required size (${requiredSize}) for shape ${inferredShape}`);
+
+        let result = new Val(inferredShape);
         result._data = Float64Array.from(this.data);
         result._prev = new Set([this]);
 
-        // Backward pass for reshape is not implemented.
-        // Often, reshape doesn't change element gradients directly,
-        // but subsequent operations might need the gradient reshaped correctly.
+        const inputVal = this;  // storing this cuz javascript :D
+
         result._backward = () => {
-            // TODO: Implement gradient accumulation/reshaping if needed.
-            // This might involve reshaping result.grad back to this.shape
-            // and accumulating it into this.grad.
-            console.warn("Backward pass for reshape is not fully implemented.");
+            if (!inputVal.grad || inputVal.grad.length !== inputVal.size) {
+                console.warn(`Reshape backward: Initializing gradient for input tensor (shape ${inputVal.shape})`);
+                inputVal.grad = new Float64Array(inputVal.size).fill(0);
+            }
+
+            if (!result.grad || result.grad.length !== result.size) {
+                console.warn(`Reshape backward: Gradient for reshaped tensor (shape ${result.shape}) is missing or has wrong size (${result.grad?.length} vs ${result.size}). Skipping accumulation.`);
+                return;
+            }
+
+            for (let i = 0; i < inputVal.grad.length; i++) {
+                if (i < result.grad.length) {
+                    inputVal.grad[i] += result.grad[i]; // Accumulate gradient onto the captured input Val's grad
+                }
+            }
         };
 
         return result

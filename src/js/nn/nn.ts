@@ -1,7 +1,6 @@
 import { Val } from "../Val/val.js"
 import * as op from "../Val/ops.js"
-import * as afn from "../Val/activations.js"
-import { gaussianRandom } from "utils/utils_num.js";
+import { gaussianRandom } from "../utils/utils_num.js";
 
 /*
 A module represents a base class that will manage parameters or zero grads.
@@ -45,7 +44,7 @@ export class Dense extends Module {
         super();
 
         this.W = new Val([nin, nout]);
-        this.W.data = this.W.data.map(()=>gaussianRandom() * Math.sqrt(2.0)/nin);
+        this.W.data = this.W.data.map(()=>gaussianRandom() * Math.sqrt(2.0/nin));
 
         this.B = new Val([1, nout], 0.1);
         this.activation = activation
@@ -66,12 +65,9 @@ export class Dense extends Module {
         }
 
         const Z = op.add(op.dot(X_, this.W), this.B);
-
         const A = this.activation ? this.activation(Z) : Z;
-
         return A;
     }
-
 }
 
 /*Sequential model (this is basically an MLP)*/
@@ -94,13 +90,4 @@ export class Sequential extends Module {
         }
         return currentOutput;
     }
-}
-
-function loss(w: Val, b: Val, X: Val, Y: Val) {
-    let m = X.shape[1]
-    let z = op.add(op.dot(w.T, X), b)
-    let A = afn.sigmoid(z)
-    // cost = -1/m * sum(Y*log(A) + (1-Y)*log(1-A))
-    let cost = op.mul(-1/m, op.sum(op.add(op.mul(Y,op.log(A)), op.mul(op.sub(1, Y), op.log(op.sub(1, A))))))
-
 }

@@ -15,35 +15,48 @@ export function arraysEqual(a: Float64Array, b: Float64Array): boolean {
 }
 
 export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
-    let v1 = t1 instanceof Val ? t1 : new Val([], t1 as number);
-    let v2 = t2 instanceof Val ? t2 : new Val([], t2 as number);
-    
+    const v1 = t1 instanceof Val ? t1 : new Val([], t1 as number);
+    const v2 = t2 instanceof Val ? t2 : new Val([], t2 as number);
+
     // if shapes already match, return clones
     if (
         v1.shape.length === v2.shape.length &&
         v1.shape.every((dim, i) => dim === v2.shape[i])
     ) {
-        return [v1, v2];
+        return [v1.clone(), v2.clone()];
     }
+
+    let v1_out = v1.clone();
+    let v2_out = v2.clone();
+    let broadcast_occurred = false;
 
     // scalars
     if (v1.size === 1 && v2.size > 1) {
         const shape = v2.shape;
         const data = new Float64Array(v2.size).fill(v1.data[0]);
-        v1 = new Val(shape);
-        v1.data = data;
-        return [v1, v2];
-    }
-    if (v2.size === 1 && v1.size > 1) {
+        v1_out = new Val(shape); 
+        v1_out.data = data;
+        broadcast_occurred = true;
+
+    } else if (v2.size === 1 && v1.size > 1) {
         const shape = v1.shape;
         const data = new Float64Array(v1.size).fill(v2.data[0]);
-        v2 = new Val(shape);
-        v2.data = data;
-        return [v1, v2];
+        v2_out = new Val(shape); 
+        v2_out.data = data;
+        broadcast_occurred = true;
+
+    } else if (v1.size === 1 && v2.size === 1) {
+        if (v1.shape.length === 0 && v2.shape.length > 0) {
+            v2_out = new Val([], v2.data[0]);
+            broadcast_occurred = true;
+        } else if (v2.shape.length === 0 && v1.shape.length > 0) {
+            v1_out = new Val([], v1.data[0]);
+            broadcast_occurred = true;
+        }
     }
 
     // limited 2D broadcasting
-    if (v1.dim === 2 && v2.dim === 2) {
+    else if (!broadcast_occurred && v1.dim === 2 && v2.dim === 2) {
         let broadcasted_data: Float64Array | null = null;
         let target_shape: number[] = [];
         let needs_v1_broadcast = false;
@@ -60,13 +73,8 @@ export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
             }
             needs_v1_broadcast = true;
         }
-
         // [M, N] and [M, 1] -> broadcast v2 to [M, N]
-        else if (
-            v1.shape[0] === v2.shape[0] &&
-            v2.shape[1] === 1 &&
-            v1.shape[1] > 1
-        ) {
+        else if (v1.shape[0] === v2.shape[0] && v2.shape[1] === 1 && v1.shape[1] > 1) {
             target_shape = v1.shape;
             broadcasted_data = new Float64Array(v1.size);
             for (let r = 0; r < target_shape[0]; r++) {
@@ -76,13 +84,8 @@ export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
             }
             needs_v2_broadcast = true;
         }
-
         // [1, N] and [M, N] -> broadcast v1 to [M, N]
-        else if (
-            v1.shape[1] === v2.shape[1] &&
-            v1.shape[0] === 1 &&
-            v2.shape[0] > 1
-        ) {
+        else if (v1.shape[1] === v2.shape[1] && v1.shape[0] === 1 && v2.shape[0] > 1) {
             target_shape = v2.shape;
             broadcasted_data = new Float64Array(v2.size);
             for (let r = 0; r < target_shape[0]; r++) {
@@ -92,13 +95,8 @@ export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
             }
             needs_v1_broadcast = true;
         }
-        
         // [M, N] and [1, N] -> broadcast v2 to [M, N]
-        else if (
-            v1.shape[1] === v2.shape[1] &&
-            v2.shape[0] === 1 &&
-            v1.shape[0] > 1
-        ) {
+        else if (v1.shape[1] === v2.shape[1] && v2.shape[0] === 1 && v1.shape[0] > 1) {
             target_shape = v1.shape;
             broadcasted_data = new Float64Array(v1.size);
             for (let r = 0; r < target_shape[0]; r++) {
@@ -110,21 +108,21 @@ export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
         }
 
         if (needs_v1_broadcast && broadcasted_data) {
-            v1 = new Val(target_shape);
-            v1.data = broadcasted_data;
+            v1_out = new Val(target_shape);
+            v1_out.data = broadcasted_data;
+            broadcast_occurred = true;
         } else if (needs_v2_broadcast && broadcasted_data) {
-            v2 = new Val(target_shape);
-            v2.data = broadcasted_data;
+            v2_out = new Val(target_shape);
+            v2_out.data = broadcasted_data;
+            broadcast_occurred = true;
         }
     }
 
-    assert(
-        v1.shape.length === v2.shape.length &&
-        v1.shape.every((dim, i) => dim === v2.shape[i]),
-        () => `Tensors could not be broadcast to compatible shapes. Shapes: ${t1 instanceof Val ? t1.shape : "[scalar]"} and ${t2 instanceof Val ? t2.shape : "[scalar]"}`
-    );
+    if (v1.size > 1 && v2.size > 1 && !v1_out.shape.every((dim, i) => dim === v2_out.shape[i])) {
+        assert(false, () => `Tensors could not be broadcast to compatible shapes. Original Shapes: ${v1.shape} and ${v2.shape}`);
+    }
 
-    return [v1, v2];
+    return [v1_out, v2_out];
 }
 
 // This reduces a gradient calculated for a broadcasted shape back to the original shape (this is to preserve the gradients)
@@ -142,7 +140,7 @@ export function reduceGradient(
     const originalSize = originalShape.reduce((a, b) => a * b, 1);
 
     // Case: original was scalar
-    if (originalShape.length === 0) {
+    if (originalShape.length === 0 || originalShape.length === 1) {
         let sum = 0;
         for (let i = 0; i < gradient.length; i++) {
             sum += gradient[i];
@@ -196,7 +194,7 @@ export function reduceGradient(
         }
         return reducedGrad;
     }
-    // This indicates either N-D broadcasting (needs specific reduction logic) or an invalid state.
+    // This indicates either N-D broadcasting (needs specific reduction logic) or an invalid state. 
     console.warn(
         `reduceGradient: Unhandled broadcast reduction from ${broadcastedShape} to ${originalShape}. Returning zero gradient.`
     );

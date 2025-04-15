@@ -65,14 +65,14 @@ export function prepare_dataset() {
     test_y_og.data = Float64Array.from(test_set_y.value)
 
     let classes = (<any>DATASET_HDF5_TEST).get("list_classes")
-    train_y_og = train_y_og.reshape([1, train_y_og.shape[0]])
-    test_y_og = test_y_og.reshape([1, test_y_og.shape[0]])
+    train_y_og = train_y_og.reshape([train_y_og.shape[0], 1])  // [m, nout(1 here)]
+    test_y_og = test_y_og.reshape([test_y_og.shape[0], 1])
 
     console.log(`# Training examples: ${train_x_og.shape[0]}`)
     console.log(`# Testing examples: ${test_x_og.shape[0]}`)
     
-    let train_x_flatten = train_x_og.reshape([train_x_og.shape[0], train_x_og.size/train_x_og.shape[0]]).T
-    let test_x_flatten = test_x_og.reshape([test_x_og.shape[0], test_x_og.size/test_x_og.shape[0]]).T
+    let train_x_flatten = train_x_og.reshape([train_x_og.shape[0], train_x_og.size/train_x_og.shape[0]])  // [m, nin]
+    let test_x_flatten = test_x_og.reshape([test_x_og.shape[0], test_x_og.size/test_x_og.shape[0]])
     
     let train_x = ops.div(train_x_flatten, 255)
     let test_x = ops.div(test_x_flatten, 255)
