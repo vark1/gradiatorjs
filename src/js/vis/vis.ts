@@ -1,8 +1,9 @@
 import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from "../utils/utils_data.js";
-import { getLayerColor, LayerType, NNLayer } from "./vis_utils.js";
+import { getLayerColor, LayerType, NNLayer } from "../utils/utils_vis.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
+import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
 
 let VISUALIZER: NeuralNetworkVisualizer;
 
@@ -164,28 +165,24 @@ document.addEventListener('DOMContentLoaded', () => {
     VISUALIZER = new NeuralNetworkVisualizer()
 })
 
-const btn = document.getElementById('run-model-btn')
-btn?.addEventListener('click', run_model);
+const runStopButton = document.getElementById('run-model-btn') as HTMLButtonElement;
+if (runStopButton) {
+    runStopButton.addEventListener('click', handleRunClick);
+} else {
+    console.error("Run/Stop button not found");
+}
 
-import { Val } from "../Val/val.js";
-import * as op from '../Val/ops.js'
-function run_model() {
+async function handleRunClick() {
+    if (getIsTraining()) {
+        console.log("Stop button clicked: Requesting stop")
+        requestStopTraining();
+        return;
+    }
 
-    // // Minimal test
-    // const a = new Val([4], 1); // Input vector [1, 1, 1, 1]
-    // a.data = Float64Array.from([1, 2, 3, 4]);
-    // const b = a.reshape([2, 2]); // Reshape
-    // const loss = op.sum(b); // Simple loss
-
-    // console.log("Minimal test: Reshaped Val 'b':", b);
-    // console.log("Minimal test: b._prev should contain 'a':", b._prev);
-
-    // loss.backward(); // Trigger backward pass
-
-    // // Check gradients AFTER backward pass
-    // console.log("Minimal test: Gradient of 'a':", a.grad);
-    // console.log("Minimal test: Gradient of 'b':", b.grad); // Should be all 1s
-    // console.log("Minimal test: Gradient of 'loss':", loss.grad);
+    if (getStopTraining()) {
+        if (runStopButton) runStopButton.textContent = 'Run Model';
+        return;
+    }
 
     if (!(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN)) {
         console.error("Datasets not found. Please select a trainset and a testset");
@@ -199,20 +196,24 @@ function run_model() {
     
     const [train_x, train_y, test_x, test_y] = prepare_dataset();
     const nin = train_x.shape[1];   // train_x.shape = [m, nin]
-    console.log(`nin: ${nin}`)
+    const LEARNING_RATE = parseFloat((document.getElementById('learning-rate') as HTMLInputElement).value) || 0.01;
+    const ITERATIONS = parseInt((document.getElementById('iterations') as HTMLInputElement).value) || 500;
+    const LOG_FREQ = 10;
 
     const model = createEngineModelFromVisualizer(VISUALIZER, nin);
 
-    const LEARNING_RATE = parseFloat((document.getElementById('learning-rate') as HTMLInputElement).value) || 0.01;
-    const ITERATIONS = parseInt((document.getElementById('iterations') as HTMLInputElement).value) || 500;
-    
+    startTraining();
+    if (runStopButton) runStopButton.textContent = 'Stop training';
+
     try {
-        trainModel(model, train_x, train_y, crossEntropyLoss, LEARNING_RATE, ITERATIONS, 1);
+        await trainModel(model, train_x, train_y, crossEntropyLoss, LEARNING_RATE, ITERATIONS, LOG_FREQ)
     } catch (error) {
         console.error("Training failed:", error);
-        return;
+        throw error;
+    } finally {
+        endTraining();
+        if (runStopButton) runStopButton.textContent = 'Run Model';
     }
 
-    console.log("Training succesful.");
     console.log(model);
 }

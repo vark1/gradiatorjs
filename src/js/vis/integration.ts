@@ -1,7 +1,7 @@
 import { Sequential, Dense, Module } from '../nn/nn.js';
 import * as afn from '../Val/activations.js';
 import { NeuralNetworkVisualizer } from './vis.js';
-import { NNLayer } from './vis_utils.js';
+import { NNLayer } from '../utils/utils_vis.js';
 
 const AFN_MAP = {
     "relu": afn.relu,
