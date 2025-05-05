@@ -257,3 +257,90 @@ export function mean(t: Val, axis?: number, keepdims = false) : Val {
 
     return out;
 }
+
+/**
+ * X: input     : [batch_size, n_height, n_width, n_channels]
+ * F: filter    : [c_outputchannels, filter_size, filter_size, n_channels]
+ * st: stride   : default = 1
+ * pad: padding : default = 0
+ */
+export function conv2d(X: Val, F: Val, st: number=1, pad: number=0) {
+
+    assert(X.dim === 4, () => `conv2d: inuput x must be 4d`)
+    assert(F.dim === 4, () => `conv2d: filter f must be 4d`)
+    assert(F.shape[1] === F.shape[2], () => `conv2d: kernels must be square`)
+    assert(X.shape[3] === F.shape[3], () => `conv2d: Input channels (${X.shape[3]}) must match kernel input channels (${F.shape[3]}`)
+    assert(st > 0 && Number.isInteger(st), () => `conv2d: stride must be > 0`)
+    assert(pad >= 0 && Number.isInteger(pad), () => `conv2d: padding must be >= 0`)
+
+    const batch_size = X.shape[0];
+    const H = X.shape[1];
+    const W = X.shape[2];
+    const C_IN = X.shape[3];
+    const C_OUT = F.shape[0];
+    const FS = F.shape[1];      // filter size
+
+    // output dims
+    const H_OUT = Math.floor((H - FS + 2*pad)/st) + 1;
+    const W_OUT = Math.floor((W - FS + 2*pad)/st) + 1;
+
+    if (H_OUT <= 0 || W_OUT <= 0) {
+        throw new Error(`Conv2d: invalid output dims. Check input, filter, stride or padding`)
+    }
+
+    const outShape = [batch_size, H, W, C_OUT]
+    const out = new Val(outShape);
+
+    for (let batch=0; batch<batch_size; batch++) {              // iterating over batch
+        for (let h_=0; h_<H_OUT; h_++) {                         // iterating over output height
+            for (let w_=0; w_<W_OUT; w_++) {                     // iterating over output width
+                for (let c_out=0; c_out<C_OUT; c_out++) {       // iterating over output channels (each kernel)
+
+                    // input window start coordinates
+                    const h_start = h_ * st - pad;
+                    const w_start = w_ * st - pad;
+
+                    let sum=0.0;
+
+                    for (let f=0; f<FS*FS; f++) {
+                        const fh = Math.floor(f/FS);            // filter row
+                        const fw = f%FS;                        // filter col
+
+                        for (let c_in=0; c_in<C_IN; c_in++) {   // iterating over filter channels
+                            const h_in_idx = h_start + fh;
+                            const w_in_idx = w_start + fw;
+
+                            if (h_in_idx>=0 && h_in_idx<H && w_in_idx>=0 && w_in_idx<W) {
+                                const x_idx = batch * (H*W*C_IN)
+                                            + h_in_idx * (W*C_IN)
+                                            + w_in_idx * C_IN
+                                            + c_in;
+                                
+                                const w_idx = c_out * (FS*FS*C_IN)
+                                            + fh * (FS*C_IN)
+                                            + fw * C_IN
+                                            + c_in;
+
+                                sum += X.data[x_idx] * F.data[w_idx];
+                            }
+                        }
+                    }
+
+                    const out_idx = batch * (H_OUT*W_OUT*C_OUT)
+                                  + h_ * (W_OUT*C_OUT)
+                                  + w_ * C_OUT
+                                  + c_out;
+
+                    out.data[out_idx] = sum;
+
+                }
+            }
+        }
+    }
+
+    out._prev = new Set([X, F]);
+    out._backward = () => {
+        console.log('implement this')
+    }
+    return out;
+}
