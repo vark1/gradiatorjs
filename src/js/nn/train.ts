@@ -1,10 +1,17 @@
 import { Val } from "../Val/val.js";
-import { Sequential, Module } from "./nn.js";
+import { Sequential, Module, Dense, Conv } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+export interface VISActivationData {
+    layerIdx: number;
+    layerType: 'dense' | 'conv' | 'other';
+    shape: number[];
+    activationSample: Float64Array | null;
 }
 
 export async function trainModel(
@@ -15,12 +22,22 @@ export async function trainModel(
     learning_rate: number,
     iterations: number,
     log_frequency: number = 10,
-    updateUICallback?: (iter: number, loss: number, accuracy: number) => void
+    vis_frequency: number = 50,
+    updateUICallback?: (iter: number, loss: number, accuracy: number, activationData?: VISActivationData[]) => void
 ) : Promise<void> {
 
     console.log(`Starting training.\n iterations: ${iterations}\n alpha: ${learning_rate}\n log frequency: ${log_frequency}`);
     
     const t1 = performance.now();
+
+    let sampleX: Val | null = null;
+    if (X_train.size > 0 && X_train.dim > 1) {
+        const sampleData = X_train.data.slice(0, X_train.shape[1]);
+        sampleX = new Val([1, X_train.shape[1]]);
+        sampleX.data = sampleData;
+    } else if (X_train.size > 0 && X_train.dim === 1) {
+        sampleX = X_train.clone();
+    }
 
     try {
         for (let i=0; i<iterations; i++) {
@@ -53,13 +70,46 @@ export async function trainModel(
                 }
             }
             
-            if ((i % log_frequency) === 0 || i === iterations - 1) {
+            if (((i % log_frequency) === 0 || i === iterations - 1) || (updateUICallback && i % vis_frequency === 0)) {
                 const lossValue = loss.data[0];
                 const accuracy = calcAccuracy(Y_pred, Y_train);
+                let activationVisData: VISActivationData[] = [];
+
+                try{
+                    if (updateUICallback && model instanceof Sequential && sampleX) {
+                        const allActivations = model.getActivations(sampleX);
+
+                        activationVisData = allActivations.slice(1).map((actVal, idx) => {
+                            let layerType: VISActivationData['layerType'] = 'other';
+                            if (model.layers[idx] instanceof Dense) {
+                                layerType = 'dense';
+                            }
+
+                            if (model.layers[idx] instanceof Conv) {
+                                layerType = 'conv';
+                            }
+
+                            let sampleData: Float64Array | null = null;
+                            if (actVal && actVal.size > 0) {
+                                sampleData = Float64Array.from(actVal.data);
+                            }
+
+                            return {
+                                layerIdx: idx,
+                                layerType: layerType,
+                                shape: actVal ? [...actVal.shape] : [],
+                                activationSample: sampleData
+                            }
+                        })
+                    }
+                } catch (err: any){
+                    console.warn(`could not calculate activations at iteration ${i}: ${err.message}`)
+                }
+
                 console.log(`Iteration ${i}: Loss = ${lossValue.toFixed(6)}, Accuracy = ${accuracy.toFixed(2)}`);
                 
                 if (updateUICallback) {
-                    updateUICallback(i, lossValue, accuracy);
+                    updateUICallback(i, lossValue, accuracy, activationVisData);
                 }
                 await yieldToBrowser();
             }
@@ -74,5 +124,4 @@ export async function trainModel(
     } finally {
         endTraining();
     }
-
 }
