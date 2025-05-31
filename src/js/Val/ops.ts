@@ -284,7 +284,7 @@ export function conv2d(X: Val, F: Val, st: number=1, pad: number=0) {
     const W_OUT = Math.floor((W - FS + 2*pad)/st) + 1;
 
     if (H_OUT <= 0 || W_OUT <= 0) {
-        throw new Error(`Conv2d: invalid output dims. Check input, filter, stride or padding`)
+        throw new Error(`Conv2d: invalid output dims. Check input, filter, stride or padding. H_OUT ${H_OUT} and W_OUT ${W_OUT}`)
     }
 
     const outShape = [batch_size, H, W, C_OUT]
@@ -389,4 +389,74 @@ export function conv2d(X: Val, F: Val, st: number=1, pad: number=0) {
         }
     }
     return out;
+}
+
+export function maxPool2d(X: Val, pool_size: number, stride: number) {
+    assert(X.dim === 4, () => `maxPool2d input must be 4D (NHWC). Got ${X.dim}D.`);
+    assert(pool_size > 0 && Number.isInteger(pool_size), () => "pool_size must be a positive integer.");
+    assert(stride > 0 && Number.isInteger(stride), () => "stride must be a positive integer.");
+
+    const B = X.shape[0];
+    const H_in = X.shape[1];
+    const W_in = X.shape[2];
+    const C = X.shape[3];
+    const H_out = Math.floor((H_in-pool_size)/stride)+1;
+    const W_out = Math.floor((W_in-pool_size)/stride)+1;
+
+    if (H_out<=0 || W_out<=0) {
+        throw new Error(`maxPool2d results in non-positive output dimension. H_out=${H_out}, W_out=${W_out}. Input: ${H_in}x${W_in}, Pool: ${pool_size}, Stride: ${stride}`);
+    }
+    const outShape = [B, H_out, W_out, C];
+    const Y_data = new Float64Array(B*H_out*W_out*C);
+    const argmax_indices = new Uint32Array(B*H_out*W_out*C);
+
+    for (let b=0; b<B; b++) {
+        for (let c=0; c<C; c++) {
+            for (let h_o=0; h_o<H_out; h_o++) {
+                for (let w_o=0; w_o<W_out; w_o++) {
+                    const h_start = h_o*stride;
+                    const w_start = w_o*stride;
+                    let max_val = -Infinity;
+                    let max_idx_flat = -1;
+
+                    for (let ph=0; ph<pool_size; ph++) {
+                        for (let pw=0; pw<pool_size; pw++) {
+                            const h_curr = h_start+ph;
+                            const w_curr = w_start+pw;
+                            const x_idx_flat = b*(H_in*W_in*C) + h_curr*(W_in*C) + w_curr*C + c;
+                            const val = X.data[x_idx_flat];
+                            if (val>max_val) {
+                                max_val = val;
+                                max_idx_flat = x_idx_flat;
+                            }
+                        }
+                    }
+                    const y_idx_flat = b*(H_out*W_out*C) + h_o*(W_out*C) + w_o*C + c;
+                    Y_data[y_idx_flat] = max_val;
+                    argmax_indices[y_idx_flat] = max_idx_flat;
+                }
+            }
+        }
+    }
+
+    const Y = new Val(outShape);
+    Y.data = Y_data;
+    Y._prev = new Set([X]);
+
+    Y._backward = ()=>{
+        if (!X.grad || X.grad.length !== X.size) {
+            X.grad = new Float64Array(X.size).fill(0);
+        }
+        for (let i = 0; i < Y.grad.length; i++) {
+            // Y.grad[i] = dL/dY_flat[i]
+            // argmax_indices[i] is the flat index in X.data that contributed to Y_flat[i]
+            const x_idx_to_update = argmax_indices[i];
+            if (x_idx_to_update !== -1) {
+                X.grad[x_idx_to_update] += Y.grad[i]; // only add gradient to the max value's og position
+            }
+        }
+    };
+
+    return Y;
+
 }
