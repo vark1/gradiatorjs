@@ -1,4 +1,4 @@
-import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../src/js/utils/utils_data.js'
+import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset } from '../../src/js/utils/utils_datasets.js'
 import { Val } from '../../src/js/Val/val.js'
 import * as ops from '../../src/js/Val/ops.js'
 import { assert } from '../../src/js/utils/utils.js'
@@ -181,7 +181,7 @@ const button = document.getElementById('run_model_btn');
 if (button) {
     button.addEventListener('click', function() {
         if(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN) {
-            let [train_x, train_y, test_x, test_y] = prepare_dataset()
+            let [train_x, train_y, test_x, test_y] = catvnoncat_prepareDataset()
             let n_x = 12288
             let n_h = 7
             let n_y = 1

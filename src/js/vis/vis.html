@@ -14,7 +14,8 @@
     <div id="toolbar">
         <button id="add-dense">+dense</button>
         <button id="add-conv">+conv</button>
-        <button id="add-output">+output</button>
+        <button id="add-flatten">+flatten</button>
+        <button id="add-maxpool">+maxpool</button>
     </div>
 
     <div class="viewport">
@@ -27,40 +28,52 @@
         <h3>Layer Configuration</h3>
         <div id="config">
             <p class="placeholder" id="placeholder">Select a layer to configure.</p>
-            <div class="common-config layer-info hidden">
+            <div class="layer-config all layer-info">
                 <p><strong>Layer Position:</strong> <span id="layer-position"></span></p>
                 <p><strong>Layer Type:</strong> <span id="layer-type"></span></p>
             </div>
-            <div class="layer-config" id="fc-config">
-                <div class="form-group hidden">
+            <div class="layer-config dense" id="dense-config">
+                <div class="form-group">
                     <label for="neurons-input">Neurons:</label>
                     <input type="number" id="neurons-input" min="1" value="64">
                 </div>
             </div>
 
-            <div class="layer-config" id="conv-config">
-                <div class="form-group hidden">
+            <div class="layer-config conv" id="conv-config">
+                <div class="form-group">
                     <label for="out-channels-input">Output channels:</label>
                     <input type="number" id="out-channels-input" min="1" value="64">
                 </div>
 
-                <div class="form-group hidden">
+                <div class="form-group">
                     <label for="kernel-size-input">Kernel size:</label>
                     <input type="number" id="kernel-size-input" min="1" value="64">
                 </div>
 
-                <div class="form-group hidden">
-                    <label for="stride-input">Stride:</label>
-                    <input type="number" id="stride-input" min="1" value="64">
+                <div class="form-group">
+                    <label for="stride-conv-input">Stride:</label>
+                    <input type="number" id="stride-conv-input" min="1" value="64">
                 </div>
 
-                <div class="form-group hidden">
+                <div class="form-group">
                     <label for="padding-input">Padding:</label>
                     <input type="number" id="padding-input" min="1" value="64">
                 </div>
             </div>
 
-            <div class="common-config form-group hidden">
+            <div class="layer-config maxpool" id="maxpool-config">
+                <div class="form-group">
+                    <label for="pool-size-input">Pool size:</label>
+                    <input type="number" id="pool-size-input" min="1" value="64">
+                </div>
+
+                <div class="form-group">
+                    <label for="stride-maxpool-input">Stride:</label>
+                    <input type="number" id="stride-maxpool-input" min="1" value="64">
+                </div>
+            </div>
+
+            <div class="layer-config dense conv form-group">
                 <label for="activation-select">Activation:</label>
                 <select id="activation-select">
                     <option>relu</option>
@@ -69,8 +82,8 @@
                 </select>
             </div>
         
-            <button class="common-config hidden" id="apply-layer-changes">Apply</button>
-            <button class="common-config hidden" id="delete-selected-layer">Delete layer</button>
+            <button class="layer-config dense conv maxpool" id="apply-layer-changes">Apply</button>
+            <button class="layer-config all" id="delete-selected-layer">Delete layer</button>
         </div>
     </div>
 
@@ -100,9 +113,9 @@
     <button id="run-model-btn">Run Model</button>
     <div id="training-status"></div>
 
-    <div id="visualization-panel" class="panel">
-        <h3>Layer Activation Visualization (Sample)</h3>
-        <p>Shows average or sample activation for each layer's output during training.</p>
+    <div>
+        <h2>Real-time Layer Activations</h2>
+        <div id="activation-details-panel"></div>
     </div>
 </body>
 </html>

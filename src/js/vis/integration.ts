@@ -1,7 +1,9 @@
-import { Sequential, Dense, Module, Conv } from '../nn/nn.js';
+import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/nn.js';
 import * as afn from '../Val/activations.js';
 import { NeuralNetworkVisualizer } from './vis.js';
 import { LayerType, NNLayer } from '../utils/utils_vis.js';
+import { Val } from '../Val/val.js';
+import { assert } from '../utils/utils.js';
 
 const AFN_MAP = {
     "relu": afn.relu,
@@ -11,108 +13,120 @@ const AFN_MAP = {
 
 export function createEngineModelFromVisualizer(
     visualizer: NeuralNetworkVisualizer,
-    nin: number,
-    inH?: number, // if first layer is conv
-    inW?: number // if first layer is conv
+    input: Val
 ): Sequential {
 
     const errors = visualizer.validateNetwork();
-    if (errors.length > 0) {
-        throw new Error(`Invalid network configuration: ${errors.join(', ')}`);
-    }
+    assert (errors.length === 0, ()=> `Invalid network configuration: ${errors.join(', ')}`)
 
     const vizLayers: NNLayer[] = (visualizer as any).layers;
-
-    if (!vizLayers || vizLayers.length === 0) {
-        throw new Error("Visualizer has no layers defined.");
-    }
+    assert(vizLayers && vizLayers.length !== 0, ()=> `Visualizer has no layers defined.`)
 
     const engineLayers: Module[] = [];
-    let currentInputUnits = nin;
-    let currentH = inH;
-    let currentW = inW;
-    let prevLayerType: LayerType = vizLayers[0].type;
+    let currentH: number | undefined = input.shape[1];
+    let currentW: number | undefined = input.shape[2];
+    let currentChannels = input.shape[3];       // 3 for rgb, 1 for grayscale
+    let isFlattened = false;
 
-    for (const vizLayer of vizLayers) {
-        const activationFn = AFN_MAP[vizLayer.activation as keyof typeof AFN_MAP];
+    let activationFn;
+
+    assert(vizLayers[0].type !== 'dense', ()=>`The first layer cannot be 'Dense'. Flatten the data first.`)
+
+    console.log(`Initial network input: H=${currentH}, W=${currentW}, C=${currentChannels}`);
+
+    for (let i=0; i<vizLayers.length; i++) {
+        const v = vizLayers[i];
         let engineLayer: Module;
 
-        switch (vizLayer.type) {
-            case 'dense':
-                let ninForDense = currentInputUnits;
+        switch (v.type) {
 
-                if (prevLayerType === 'conv') {
-                    if (currentH === undefined || currentW === undefined) throw new Error(`cannot create dense layer after conv since output dims of prev layer are unknown`);
-                    ninForDense = currentH * currentW * currentInputUnits;
+            case 'flatten':
+                assert(!isFlattened, ()=>`Invalid configuration: Multiple FlattenLayers.`)
+                if (currentH === undefined || currentW === undefined) {
+                    throw new Error("FlattenLayer received input without defined H, W. Ensure it follows a Conv/Pool layer or is the first layer for image data.");
                 }
 
+                engineLayer = new Flatten();
+                engineLayers.push(engineLayer);
+                currentChannels = currentH * currentW * currentChannels;
+                currentH = undefined;
+                currentW = undefined;
+                isFlattened = true;
+                break;
+
+            case 'dense':
+                assert (isFlattened, ()=>`Dense layer received unflattened input (H=${currentH}, W=${currentW}, C=${currentChannels}). Relying on DenseLayer's internal auto-flattening.`)
+                let ninForDense = currentChannels;
+                activationFn = AFN_MAP[v.activation as keyof typeof AFN_MAP];
+                
                 engineLayer = new Dense(
                     ninForDense,
-                    vizLayer.neurons,
+                    v.neurons,
                     activationFn
                 );
                 engineLayers.push(engineLayer);
-                currentInputUnits = vizLayer.neurons; // Output size of this layer is input size for next
+                currentChannels = v.neurons; // Output size of this layer is input size for next
                 currentW = undefined;
                 currentH = undefined;
+                isFlattened = true;
                 break;
 
             case 'conv':
-                if (prevLayerType === 'dense') {
-                    console.warn(`Creating Conv layer after Dense layer. Assuming Dense output represents [Batch, 1, 1, ${currentInputUnits}] or needs explicit Reshape. Setting H_in=1, W_in=1 for Conv.`);
+                if (isFlattened) {
+                    console.warn(`Creating Conv after data has been flattened. Conv layer will assume input H=1, W=1, C_in=${currentChannels}.`);
                     currentH = 1;
                     currentW = 1;
+                } else if (currentH === undefined || currentW === undefined) {
+                    throw new Error(`Cannot create Conv: input spatial dimensions (H, W) are unknown. H: ${currentH}, W: ${currentW}.`);
                 }
-
-                if (currentH === undefined || currentW === undefined || currentInputUnits === undefined) {
-                    throw new Error(`Cant create Conv layer: input dims (H, W, C) are unknown or undefined. H: ${currentH}, W: ${currentW}, C_in: ${currentInputUnits}. Previous layer type: ${prevLayerType}`)
-                }
+                
+                activationFn = AFN_MAP[v.activation as keyof typeof AFN_MAP];
 
                 engineLayer = new Conv(
-                    currentInputUnits, 
-                    vizLayer.out_channels, 
-                    vizLayer.kernel_size, 
-                    vizLayer.stride, 
-                    vizLayer.padding, 
+                    currentChannels, 
+                    v.out_channels, 
+                    v.kernel_size, 
+                    v.stride, 
+                    v.padding, 
                     activationFn
                 );
                 engineLayers.push(engineLayer);
 
-                currentH = Math.floor((currentH - vizLayer.kernel_size + 2 * vizLayer.padding) / vizLayer.stride) + 1;
-                currentW = Math.floor((currentW - vizLayer.kernel_size + 2 * vizLayer.padding) / vizLayer.stride) + 1;
-                if (currentH <= 0 || currentW <= 0) {
-                    throw new Error(`Conv layer results in non-positive output dimension: H_out=${currentH}, W_out=${currentW}. Check params.`);
-                }
+                currentH = Math.floor((currentH-v.kernel_size+2*v.padding)/v.stride)+1;
+                currentW = Math.floor((currentW-v.kernel_size+2*v.padding)/v.stride)+1;
 
-                currentInputUnits = vizLayer.out_channels;
+                assert(currentH>0 && currentW>0, ()=>`Conv layer results in non-positive output dimension: H_out=${currentH}, W_out=${currentW}. Check params.`)
+
+                currentChannels = v.out_channels;
+                isFlattened = false;
                 break;
-            case 'output':      // this is also a dense layer, just the last one (likely with 1-10 neurons only)
-                let ninForOutput = currentInputUnits;
-
-                if (prevLayerType === 'conv') {
-                    if (currentH === undefined || currentW === undefined) throw new Error(`cannot create dense layer after conv since output dims of prev layer are unknown`);
-                    ninForOutput = currentH * currentW * currentInputUnits;
+            
+            case 'maxpool':
+                assert(!isFlattened, ()=>"MaxPooling2DLayer cannot follow a Flattened or Dense layer. It requires spatial input.")
+                if (currentH === undefined || currentW === undefined) {
+                    throw new Error(`Cannot create MaxPooling2DLayer: input spatial dimensions (H, W) are unknown.`);
                 }
-
-                engineLayer = new Dense(
-                    ninForOutput,
-                    vizLayer.neurons,
-                    activationFn
+                
+                engineLayer = new MaxPool2D(
+                    v.pool_size,
+                    v.stride
                 );
-                engineLayers.push(engineLayer);
-                currentInputUnits = vizLayer.neurons; // Output size of this layer is input size for next
-                currentW = undefined;
-                currentH = undefined;
-                break;    
+                engineLayers.push(engineLayer)
+
+                currentH = Math.floor((currentH - v.pool_size) / v.stride) + 1;
+                currentW = Math.floor((currentW - v.pool_size) / v.stride) + 1;
+
+                assert(currentH>0 && currentW>0, ()=>`maxpool layer results in non-positive output dimension: H_out=${currentH}, W_out=${currentW}. Check params.`)
+
+                isFlattened = false;
+                break;
+
             default:
-                throw new Error(`Unsupported visualizer layer type for layer: ${vizLayer}`);        
+                throw new Error(`Unsupported visualizer layer type for layer: ${v}`);        
         }
-        prevLayerType = vizLayer.type;
     }
 
-    if (engineLayers.length === 0) {
-        throw new Error("No computational engine layers could be created from the visualizer configuration.");
-    }
+    assert(engineLayers.length!==0, ()=> "No computational engine layers could be created from the visualizer configuration.")
 
     const model = new Sequential(...engineLayers);
     return model;

@@ -200,3 +200,22 @@ export function reduceGradient(
     );
     return reducedGrad; // Return the zero-filled array matching original size
 }
+
+interface MinMaxInfo {
+    minv: number;
+    maxv: number;
+    dv: number; // Range (maxv - minv)
+}
+
+export function calculateMinMax(data: Float64Array): MinMaxInfo {
+    if (!data || data.length === 0) {
+        return { minv: 0, maxv: 0, dv: 0 };
+    }
+    let minv = data[0];
+    let maxv = data[0];
+    for (let i = 1; i < data.length; i++) {
+        if (data[i] < minv) minv = data[i];
+        if (data[i] > maxv) maxv = data[i];
+    }
+    return { minv, maxv, dv: maxv - minv };
+}

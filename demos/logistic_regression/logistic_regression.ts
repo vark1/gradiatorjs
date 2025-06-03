@@ -1,4 +1,4 @@
-import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, prepare_dataset } from '../../src/js/utils/utils_data.js';
+import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset } from '../../src/js/utils/utils_datasets.js';
 import { Val } from '../../src/js/Val/val.js'
 import { sigmoid } from '../../src/js/Val/activations.js'
 import { add, mul, sum, log, dot, div, mean, abs, sub } from '../../src/js/Val/ops.js'
@@ -100,7 +100,7 @@ const button = document.getElementById('run_model_btn');
 if (button) {
     button.addEventListener('click', function() {
         if(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN) {
-            let [train_x, train_y, test_x, test_y] = prepare_dataset()
+            let [train_x, train_y, test_x, test_y] = catvnoncat_prepareDataset()
             let logistic_regression_model = model(train_x, train_y, test_x, test_y, 2000, 0.005, true)
             console.log(logistic_regression_model)
         }

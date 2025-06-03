@@ -17,8 +17,20 @@
     background-color: #f9f9f9;
 }
 
-.hidden {
+.layer-config {
     display: none;
+}
+
+.layer-config.show {
+    display: block;
+}
+
+.common-config {
+    display: none;
+}
+
+.common-config.show {
+    display: block;
 }
 
 /* -----------------------LAYER start-----------------------*/

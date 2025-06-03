@@ -59,21 +59,12 @@ export class Dense extends Module {
         // X.shape = [batchsize, nin]
         let X = X_input;
 
-        // flattening for 4d input (like from conv layer)
-        if (X_input.dim === 4) {
-            const batchSize = X_input.shape[0];
-            const flattenedFeatures = X_input.shape[1] * X_input.shape[2] * X_input.shape[3];
-
-            console.warn(`Denselayer input is 4d. Flattening`)
-            X = X_input.reshape([batchSize, flattenedFeatures])
-        }
-
         // X should be either 1D or 2D
         if (X_input.dim === 1) {
             // reshaping [nin] to [1, nin]
             X = X_input.reshape([1, X_input.shape[0]]);
         } else if(X.dim !== 2) {
-            throw new Error(`Dense layer expects dim 1, 2 or 4, got ${X_input.dim}`);
+            throw new Error(`Dense layer expects dim 1 or 2, got ${X_input.dim}`);
         }
 
         if (X.shape[1] !== this.nin) {
@@ -119,13 +110,7 @@ export class Conv extends Module {
     forward(X_input: Val): Val {
         let X = X_input;
 
-        if (X_input.dim === 2 && X_input.shape[1] === this.in_channels) {
-            console.warn(`Conv2DLayer: Input is 2D [${X_input.shape[0]}, ${X_input.shape[1]}]. Reshaping to 4D [${X_input.shape[0]}, 1, 1, ${this.in_channels}] assuming it came from a Dense layer.`);
-            X = X_input.reshape([X_input.shape[0], 1, 1, this.in_channels]);
-        }
-
         assert(X.dim === 4, ()=> `Conv2DLayer: Input must be 4D. got ${X.dim} dims with shape : ${X.shape}`);
-        assert(X.shape[3] === this.in_channels, ()=> `Conv2DLayer: Input channels ${X.shape[3]} mismatch layer input channels ${this.in_channels}`)
 
         // NHWC Input with [C_out, kernelsize, kernelsize, C_in] weights
         // output should be [Batch, H_out, W_out, C_out]
@@ -173,6 +158,29 @@ export class Conv extends Module {
 
         const A = this.activation? this.activation(Z_with_bias) : Z_with_bias;
         return A;
+    }
+}
+
+export class Flatten extends Module {
+    forward(X: Val): Val {
+        assert(X.dim === 4, ()=>`Flatten's input is not 4D. found: ${X.dim}`)
+
+        return X.reshape([X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]]);
+    }
+}
+
+export class MaxPool2D extends Module {
+    pool_size: number;
+    stride: number;
+
+    constructor(pool_size: number, stride: number) {
+        super();
+        this.pool_size = pool_size;
+        this.stride = stride ?? pool_size;
+    }
+
+    forward(X: Val) : Val {
+        return op.maxPool2d(X, this.pool_size, this.stride);
     }
 }
 

@@ -2,6 +2,7 @@ import { Val } from "../Val/val.js";
 import { Sequential, Module, Dense, Conv } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
+import { LayerType } from "../utils/utils_vis.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
@@ -9,9 +10,9 @@ function yieldToBrowser(): Promise<void> {
 
 export interface VISActivationData {
     layerIdx: number;
-    layerType: 'dense' | 'conv' | 'other';
+    layerType: LayerType;
     shape: number[];
-    activationSample: Float64Array | null;
+    activationSample: Float64Array;
 }
 
 export async function trainModel(
@@ -28,15 +29,27 @@ export async function trainModel(
 
     console.log(`Starting training.\n iterations: ${iterations}\n alpha: ${learning_rate}\n log frequency: ${log_frequency}`);
     
+    const overallStartTime = performance.now();
+    let totalProcessingTime = 0;
     const t1 = performance.now();
 
     let sampleX: Val | null = null;
-    if (X_train.size > 0 && X_train.dim > 1) {
-        const sampleData = X_train.data.slice(0, X_train.shape[1]);
-        sampleX = new Val([1, X_train.shape[1]]);
-        sampleX.data = sampleData;
-    } else if (X_train.size > 0 && X_train.dim === 1) {
-        sampleX = X_train.clone();
+
+    // creating a sample for visualizer
+    if (X_train.size > 0 && X_train.dim === 4) {
+
+        const B = X_train.shape[0];
+        const H = X_train.shape[1];
+        const W = X_train.shape[2];
+        const C = X_train.shape[3];
+        
+        if (B > 0) { // If there's at least one sample in the batch
+            const singleImageFeatureCount = H*W*C;
+            const firstImageData = X_train.data.slice(0, singleImageFeatureCount);
+
+            sampleX = new Val([1, H, W, C]);
+            sampleX.data = Float64Array.from(firstImageData);
+        }
     }
 
     try {
@@ -80,25 +93,11 @@ export async function trainModel(
                         const allActivations = model.getActivations(sampleX);
 
                         activationVisData = allActivations.slice(1).map((actVal, idx) => {
-                            let layerType: VISActivationData['layerType'] = 'other';
-                            if (model.layers[idx] instanceof Dense) {
-                                layerType = 'dense';
-                            }
-
-                            if (model.layers[idx] instanceof Conv) {
-                                layerType = 'conv';
-                            }
-
-                            let sampleData: Float64Array | null = null;
-                            if (actVal && actVal.size > 0) {
-                                sampleData = Float64Array.from(actVal.data);
-                            }
-
                             return {
                                 layerIdx: idx,
-                                layerType: layerType,
+                                layerType: model.layers[idx] instanceof Conv ? 'conv': 'dense',
                                 shape: actVal ? [...actVal.shape] : [],
-                                activationSample: sampleData
+                                activationSample: actVal.data ? actVal.data : new Float64Array([])
                             }
                         })
                     }
