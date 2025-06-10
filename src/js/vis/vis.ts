@@ -1,9 +1,11 @@
-import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset } from "../utils/utils_datasets.js";
-import { drawActivations, getLayerColor, LayerType, NNLayer } from "../utils/utils_vis.js";
+import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset, prepareMNISTData } from "../utils/utils_datasets.js";
+import { drawActivations, getLayerColor } from "../utils/utils_vis.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
-import { trainModel, VISActivationData } from "../nn/train.js";
+import { trainModel } from "../nn/train.js";
+import { VISActivationData, LayerType, NNLayer } from "../utils/types_and_interfaces.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
+import { assert } from "utils/utils.js";
 
 let VISUALIZER: NeuralNetworkVisualizer;
 
@@ -281,49 +283,59 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 const runStopButton = document.getElementById('run-model-btn') as HTMLButtonElement;
-if (runStopButton) {
-    runStopButton.addEventListener('click', handleRunClick);
-} else {
+if (!runStopButton) {
     console.error("Run/Stop button not found");
+    requestStopTraining();
 }
+runStopButton.addEventListener('click', handleRunClick);
 
-const statusElement = document.getElementById('training-status');
+const statusElement = document.getElementById('training-status') as HTMLElement;
+if (!statusElement) {
+    console.error("Training Status Element not found");
+    requestStopTraining();
+}
 
 async function handleRunClick() {
     if (getIsTraining()) {
         console.log("Stop button clicked: Requesting stop")
         requestStopTraining();
-        if (statusElement) statusElement.textContent = 'Stopping...';
+        statusElement.textContent = 'Stopping...';
         return;
     }
 
-    if (getStopTraining()) { if (runStopButton) runStopButton.textContent = 'Run Model'; return; }
-    if (!(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN)) { console.error("Datasets not found. Please select a trainset and a testset"); return; }
+    if (getStopTraining()) { runStopButton.textContent = 'Run Model'; return; }
+    // if (!(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN)) { console.error("Datasets not found. Please select a trainset and a testset"); return; }
     if (!VISUALIZER) { console.error("Visulizer has not yet loaded for it to run the model."); return; }
     
-    const X = catvnoncat_prepareDataset();
     const LEARNING_RATE = parseFloat((document.getElementById('learning-rate') as HTMLInputElement).value) || 0.01;
-    const ITERATIONS = parseInt((document.getElementById('iterations') as HTMLInputElement).value) || 500;
-    const LOG_FREQ = 10;
-    const VIS_FREQUENCY = 50;
+    const EPOCH = parseInt((document.getElementById('epoch') as HTMLInputElement).value) || 500;
+    const UPDATEUI_FREQ = 10;
+    const VIS_FREQ = 50;
+    const BATCH_SIZE = parseInt((document.getElementById('batch-size') as HTMLInputElement).value) || 100;
+    
+    const [mnist_x_train, mnist_y_train] = await prepareMNISTData();
+    // const catvnoncat_data = catvnoncat_prepareDataset();
 
-    const model = createEngineModelFromVisualizer(VISUALIZER, X['train_x_og']);
+    const X_train = mnist_x_train// catvnoncat_data['train_x_og'];
+    const Y_train = mnist_y_train// catvnoncat_data['train_y'];
+    const model = createEngineModelFromVisualizer(VISUALIZER, X_train);
 
     startTraining();
-    if (runStopButton) runStopButton.textContent = 'Stop training';
-    if (statusElement) statusElement.textContent = 'Preparing...';
-
+    runStopButton.textContent = 'Stop training';
+    statusElement.textContent = 'Preparing...';
     try {
         await trainModel(
             model, 
-            X['train_x_og'], 
-            X['train_y'], 
+            X_train, 
+            Y_train, 
             crossEntropyLoss, 
             LEARNING_RATE, 
-            ITERATIONS, 
-            LOG_FREQ,
-            VIS_FREQUENCY,
-            updateTrainingStatusUI
+            EPOCH,
+            BATCH_SIZE, 
+            UPDATEUI_FREQ,
+            VIS_FREQ,
+            updateTrainingStatusUI,
+            updateActivationVis
         )
 
         if (statusElement && !getStopTraining()) {
@@ -331,14 +343,13 @@ async function handleRunClick() {
         }
     } catch (error: any) {
         console.error("Training failed:", error);
-        if (statusElement) statusElement.textContent = `Error: ${error.message || error}`
+        statusElement.textContent = `Error: ${error.message || error}`
         if (getIsTraining()) { endTraining(); }
         throw error;
     } finally {
         endTraining();
         if (runStopButton) runStopButton.textContent = 'Run Model';
     }
-
     console.log(model);
 }
 
@@ -428,79 +439,115 @@ function renderFallbackText(canvas: HTMLCanvasElement, text: string) {
 
 const activationPanelContainer = document.getElementById('activation-details-panel');
 
-function updateTrainingStatusUI(
-    iter: number,
-    loss: number,
-    accuracy: number,
-    activationData?: VISActivationData[]
-) {
-    if (statusElement) {
-        statusElement.textContent = `Training... Iter: ${iter}, Loss: ${loss.toFixed(4)}, Acc: ${isNaN(accuracy) ? 'N/A' : accuracy.toFixed(1)}%`;
-    }
+function updateTrainingStatusUI(epoch: number, batch_idx: number, loss: number, accuracy: number, iterTime: number) {
+    statusElement.textContent = `
+    Epoch ${epoch + 1}, \n
+    Batch ${batch_idx}: \n
+    Loss=${loss.toFixed(4)}, 
+    Acc=${accuracy.toFixed(2)}%, 
+    Time per example=${(iterTime/1000).toFixed(4)}s`
+}
 
-    if (activationData && VISUALIZER && activationPanelContainer) {
-        const vizLayers = (VISUALIZER as any).layers as NNLayer[];
+function updateActivationVis(activationData: VISActivationData[]) {
 
-        activationData.forEach(actData => {
-            if (actData.layerIdx < vizLayers.length) {
-                const vizLayer = vizLayers[actData.layerIdx];
-                const layerElement = vizLayer.element;
+    if (!activationData)            { console.error('activation data not found'); return; }
+    if (!VISUALIZER)                { console.error('Visualizer not found'); return; }
+    if (!activationPanelContainer)  { console.error('Activation panel container not found'); return; }
 
-                let layerActivationContainerId = `act-vis-layer-${vizLayer.id}`;
-                let layerActivationContainer = document.getElementById(layerActivationContainerId);
+    const vizLayers = (VISUALIZER as any).layers as NNLayer[];
 
-                if (!layerActivationContainer) {
-                    layerActivationContainer = document.createElement('div');
-                    layerActivationContainer.id = layerActivationContainerId;
+    activationData.forEach(actData => {
+        if (actData.layerIdx < vizLayers.length) {
+            const vizLayer = vizLayers[actData.layerIdx];
+            const layerElement = vizLayer.element;
 
-                    const title = document.createElement('h4');
-                    title.textContent = `Layer ${actData.layerIdx + 1}: ${vizLayer.type}`;
-                    layerActivationContainer.appendChild(title);
+            let layerActivationContainerId = `act-vis-layer-${vizLayer.id}`;
+            let layerActivationContainer = document.getElementById(layerActivationContainerId);
 
-                    const canvasWrapper = document.createElement('div');
-                    canvasWrapper.className = 'activation-maps-wrapper';
-                    layerActivationContainer.appendChild(canvasWrapper);
+            if (!layerActivationContainer) {
+                layerActivationContainer = document.createElement('div');
+                layerActivationContainer.id = layerActivationContainerId;
 
-                    activationPanelContainer.appendChild(layerActivationContainer);
-                }
+                const title = document.createElement('h4');
+                title.textContent = `Layer ${actData.layerIdx + 1}: ${vizLayer.type}`;
+                layerActivationContainer.appendChild(title);
 
-                const canvasWrapper = layerActivationContainer.querySelector('.activation-maps-wrapper') as HTMLElement;
-                if (!canvasWrapper) return;
+                const canvasWrapper = document.createElement('div');
+                canvasWrapper.className = 'activation-maps-wrapper';
+                layerActivationContainer.appendChild(canvasWrapper);
 
-                let canvasId = `act-canvas-${vizLayer.id}-map0`; // ID for the first map/heatmap
-                let canvas = document.getElementById(canvasId) as HTMLCanvasElement;
-                if (!canvas) {
-                    canvas = document.createElement('canvas');
-                    canvas.id = canvasId;
-                    canvas.style.border = '1px solid #ccc';
-                    canvas.style.backgroundColor = '#f8f8f8';
-                    canvasWrapper.appendChild(canvas);
-                }
-
-                if (!actData.activationSample || actData.activationSample.length === 0) {
-                    renderFallbackText(canvas, 'no activation data');
-                    return;
-                }
-
-                if (actData.layerType === 'dense') {
-                    const numActivations = actData.activationSample.length;
-                    canvas.style.width = '100%';
-                    canvas.style.height = '15px';
-                    canvas.width = Math.min(numActivations, 256);
-                    canvas.height = 15;
-                    renderToCanvas(actData.activationSample, canvas, 'heatmap1d', numActivations);
-                } else if (actData.layerType === 'conv') {
-                    if (actData.shape.length === 4 && actData.shape[0] === 1) {
-
-                        drawActivations(activationPanelContainer, actData, 2)
-                        
-                    } else {
-                        renderFallbackText(canvas, `Conv shape error (${actData.shape.join(',')})`);
-                    }
-                } else {
-                    renderFallbackText(canvas, `Type? (${actData.layerType})`);
-                }
+                activationPanelContainer.appendChild(layerActivationContainer);
             }
-        });
-    }
+
+            const canvasWrapper = layerActivationContainer.querySelector('.activation-maps-wrapper') as HTMLElement;
+            if (!canvasWrapper) return;
+
+            let canvasId = `act-canvas-${vizLayer.id}-map0`; // ID for the first map/heatmap
+            let canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                canvas.style.border = '1px solid #ccc';
+                canvas.style.backgroundColor = '#f8f8f8';
+                canvasWrapper.appendChild(canvas);
+            }
+
+            if (!actData.activationSample || actData.activationSample.length === 0) {
+                renderFallbackText(canvas, 'no activation data');
+                return;
+            }
+
+            if (actData.layerType === 'dense') {
+                const numActivations = actData.activationSample.length;
+                canvas.style.width = '100%';
+                canvas.style.height = '15px';
+                canvas.width = Math.min(numActivations, 256);
+                canvas.height = 15;
+                renderToCanvas(actData.activationSample, canvas, 'heatmap1d', numActivations);
+            } else if (actData.layerType === 'conv') {
+                if (actData.shape.length === 4 && actData.shape[0] === 1) {
+
+                    drawActivations(activationPanelContainer, actData, 4)
+                    
+                    const H_out = actData.shape[1];
+                    const W_out = actData.shape[2];
+                    const C_out = actData.shape[3];
+                    const singleMapSize = H_out * W_out;
+
+                    if (singleMapSize > 0 && C_out > 0 && actData.activationSample.length === singleMapSize * C_out) {
+                        // xtracting data for the first feature map (channel 0)
+                        const firstMapData = new Float64Array(singleMapSize);
+                        for (let i=0; i<singleMapSize; i++) {
+                            firstMapData[i] = actData.activationSample[i * C_out + 0];
+                        }
+
+                        canvas.width = W_out;
+                        canvas.height = H_out;
+                        canvas.style.imageRendering = 'pixelated';
+
+                        const maxDisplayDim = 48;
+                        let displayW, displayH;
+                        if (W_out >= H_out) { // wider or square
+                            displayW = maxDisplayDim;
+                            displayH = Math.round(maxDisplayDim * (H_out / W_out));
+                        } else {              // taller
+                            displayH = maxDisplayDim;
+                            displayW = Math.round(maxDisplayDim * (W_out / H_out));
+                        }
+                        canvas.style.width = `${displayW}px`;
+                        canvas.style.height = `${displayH}px`;
+
+                        renderToCanvas(firstMapData, canvas, 'feature_map', W_out, H_out);
+                    } else {
+                        renderFallbackText(canvas, `Conv data error (S:${actData.activationSample.length} vs E:${singleMapSize * C_out})`)
+                    }
+                    
+                } else {
+                    renderFallbackText(canvas, `Conv shape error (${actData.shape.join(',')})`);
+                }
+            } else {
+                renderFallbackText(canvas, `Type? (${actData.layerType})`);
+            }
+        }
+    });
 }

@@ -1,6 +1,5 @@
 import { Val } from '../Val/val.js';
 import * as op from '../Val/ops.js'
-import { sigmoid } from '../Val/activations.js';
 
 export function gaussianRandom(mean=0, stdev=1) : number {
     const u = 1 - Math.random(); // Converting [0,1) to (0,1]

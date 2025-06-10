@@ -1,4 +1,5 @@
 import { Val } from "../Val/val.js";
+import { MinMaxInfo } from "./types_and_interfaces.js";
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {
@@ -199,12 +200,6 @@ export function reduceGradient(
         `reduceGradient: Unhandled broadcast reduction from ${broadcastedShape} to ${originalShape}. Returning zero gradient.`
     );
     return reducedGrad; // Return the zero-filled array matching original size
-}
-
-interface MinMaxInfo {
-    minv: number;
-    maxv: number;
-    dv: number; // Range (maxv - minv)
 }
 
 export function calculateMinMax(data: Float64Array): MinMaxInfo {

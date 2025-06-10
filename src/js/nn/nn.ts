@@ -123,6 +123,7 @@ export class Conv extends Module {
 
         const Z_with_bias = new Val([B_batch, H_out, W_out, this.out_channels]);
         
+        // Need to optimize this yesterday
         for (let b=0; b<B_batch; b++) {
             for (let h=0; h<H_out; h++) {
                 for (let w=0; w<W_out; w++) {

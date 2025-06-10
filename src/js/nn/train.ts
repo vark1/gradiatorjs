@@ -2,17 +2,42 @@ import { Val } from "../Val/val.js";
 import { Sequential, Module, Dense, Conv } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
-import { LayerType } from "../utils/utils_vis.js";
+import { VISActivationData } from "../utils/types_and_interfaces.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
 }
 
-export interface VISActivationData {
-    layerIdx: number;
-    layerType: LayerType;
-    shape: number[];
-    activationSample: Float64Array;
+function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: number, features: number) {
+    const batchShape = [currentBatchSize, ...ogVal.shape.slice(1)];
+    const batchVal = new Val(batchShape);
+
+    for (let k=0; k<currentBatchSize; k++) {
+        const ogIdx = batchIndices[k];
+        const sourceOffset = ogIdx*features;
+        const destOffset = k*features;
+        batchVal.data.set(ogVal.data.subarray(sourceOffset, sourceOffset+features), destOffset);
+    }
+    return batchVal;
+}
+
+// generator that will yield mini-batches from the full dataset 
+function* getMiniBatch(X: Val, Y: Val, batchSize: number){
+    const numSamples = X.shape[0]
+    const indices = Array.from({ length: numSamples }, (_, i) => i);
+
+    const xFeatures = X.size / numSamples;  // H*W*C for images, or F for dense
+    const yFeatures = Y.size / numSamples;  // num classes for 1-hot labels
+
+    for (let i=0; i<numSamples; i+=batchSize) {
+        const batchIndices = indices.slice(i, i+batchSize);
+        const currentBatchSize = batchIndices.length;
+
+        const xBatchVal = createBatchVal(X, batchIndices, currentBatchSize, xFeatures)
+        const yBatchVal = createBatchVal(Y, batchIndices, currentBatchSize, yFeatures)
+
+        yield {x: xBatchVal, y: yBatchVal}
+    }
 }
 
 export async function trainModel(
@@ -20,101 +45,95 @@ export async function trainModel(
     X_train: Val,
     Y_train: Val,
     loss_fn: (Y_pred: Val, Y_true: Val) => Val,
-    learning_rate: number,
-    iterations: number,
-    log_frequency: number = 10,
-    vis_frequency: number = 50,
-    updateUICallback?: (iter: number, loss: number, accuracy: number, activationData?: VISActivationData[]) => void
+    l_rate: number,
+    epochs: number,
+    batch_size: number,
+    update_ui_freq: number = 10,
+    vis_freq: number = 50,
+    updateUICallback: (
+        epoch: number,
+        batch_idx: number,
+        iter: number, 
+        loss: number, 
+        accuracy: number, 
+    ) => void,
+    updateActivationVis: (actvisdata: VISActivationData[])=> void
 ) : Promise<void> {
 
-    console.log(`Starting training.\n iterations: ${iterations}\n alpha: ${learning_rate}\n log frequency: ${log_frequency}`);
+    console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
     
-    const overallStartTime = performance.now();
     let totalProcessingTime = 0;
-    const t1 = performance.now();
-
-    let sampleX: Val | null = null;
-
-    // creating a sample for visualizer
-    if (X_train.size > 0 && X_train.dim === 4) {
-
-        const B = X_train.shape[0];
-        const H = X_train.shape[1];
-        const W = X_train.shape[2];
-        const C = X_train.shape[3];
-        
-        if (B > 0) { // If there's at least one sample in the batch
-            const singleImageFeatureCount = H*W*C;
-            const firstImageData = X_train.data.slice(0, singleImageFeatureCount);
-
-            sampleX = new Val([1, H, W, C]);
-            sampleX.data = Float64Array.from(firstImageData);
-        }
-    }
+    let iteration = 0;
 
     try {
-        for (let i=0; i<iterations; i++) {
-            if (getStopTraining()) {
-                console.log(`Training stopped at iteration ${i}`);
-                return;
-            }
-
-            model.zeroGrad();
-            const Y_pred = model.forward(X_train);
-            const loss = loss_fn(Y_pred, Y_train);
-            if (loss.size !== 1) {
-                console.warn(`Loss is not scalar.\n size = ${loss.size}.\n iteration ${i}.\n Skipping backward here`);
-                continue;
-            }
-
-            loss.backward();
-
-            const params = model.parameters();
-            for (const p of params) {
-                if (!p.grad || p.data.length !== p.grad.length) {
-                    console.warn(`Skipping update for parameter due to missing/mismatched gradient at iteration ${i}. Param shape: ${p.shape}`);
-                    continue;
-                }
-
-                for (let j=0; j<p.data.length; j++) {
-                    if (j < p.grad.length) {
-                        p.data[j] -= learning_rate * p.grad[j];
-                    }
-                }
-            }
+        for (let e=0; e<epochs; e++) {
             
-            if (((i % log_frequency) === 0 || i === iterations - 1) || (updateUICallback && i % vis_frequency === 0)) {
-                const lossValue = loss.data[0];
-                const accuracy = calcAccuracy(Y_pred, Y_train);
-                let activationVisData: VISActivationData[] = [];
-
-                try{
-                    if (updateUICallback && model instanceof Sequential && sampleX) {
-                        const allActivations = model.getActivations(sampleX);
-
-                        activationVisData = allActivations.slice(1).map((actVal, idx) => {
-                            return {
-                                layerIdx: idx,
-                                layerType: model.layers[idx] instanceof Conv ? 'conv': 'dense',
-                                shape: actVal ? [...actVal.shape] : [],
-                                activationSample: actVal.data ? actVal.data : new Float64Array([])
-                            }
-                        })
-                    }
-                } catch (err: any){
-                    console.warn(`could not calculate activations at iteration ${i}: ${err.message}`)
+            const batchGenerator = getMiniBatch(X_train, Y_train, batch_size)
+            let batch_idx = 0;
+            
+            for (const batch of batchGenerator) {
+                if (getStopTraining()) {
+                    console.log(`Training stopped at epoch ${e}`);
+                    return;
                 }
 
-                console.log(`Iteration ${i}: Loss = ${lossValue.toFixed(6)}, Accuracy = ${accuracy.toFixed(2)}`);
+                const iterStartTime = performance.now();
+                const { x: X_batch, y: Y_batch } = batch;
+
+                model.zeroGrad();
+                const Y_pred = model.forward(X_batch);
+                const loss = loss_fn(Y_pred, Y_batch);
+                loss.backward();
+
+                const params = model.parameters();
                 
-                if (updateUICallback) {
-                    updateUICallback(i, lossValue, accuracy, activationVisData);
+                for (const p of params) {
+                    if (!p.grad || p.data.length !== p.grad.length) {
+                        console.warn(`Skipping update for parameter due to missing/mismatched gradient at iteration ${e}. Param shape: ${p.shape}`);
+                        continue;
+                    }
+
+                    for (let j=0; j<p.data.length; j++) {
+                        if (j < p.grad.length) {
+                            p.data[j] -= l_rate * p.grad[j];
+                        }
+                    }
                 }
+
+                const iterEndTime = performance.now();
+                const iterTime = iterEndTime - iterStartTime;
+                totalProcessingTime += iterTime;
+                iteration++;
+
+                if (batch_idx % update_ui_freq === 0) {
+                    const accuracy = calcAccuracy(Y_pred, Y_batch);
+                    updateUICallback(e + 1, batch_idx, loss.data[0], accuracy, iterTime);
+                }
+
+                if (batch_idx % vis_freq === 0) {
+                    let activationVisData: VISActivationData[] = [];
+                    const sampleX_for_vis = new Val(X_batch.shape.slice(1)).reshape([1, ...X_batch.shape.slice(1)])
+                    sampleX_for_vis.data = X_batch.data.slice(0, X_batch.size / X_batch.shape[0]);
+                    const allActivations = model.getActivations(sampleX_for_vis);
+
+                    activationVisData = allActivations.slice(1).map((actVal, idx) => {
+                        return {
+                            layerIdx: idx,
+                            layerType: model.layers[idx] instanceof Conv ? 'conv': 'dense',
+                            shape: actVal ? [...actVal.shape] : [],
+                            activationSample: actVal.data ? actVal.data : new Float64Array([])
+                        }
+                    })
+                    updateActivationVis(activationVisData);
+                }
+                batch_idx++;
                 await yieldToBrowser();
             }
         }
-        const t2 = performance.now();
-        console.log(`Training done. Time taken: ${((t2-t1)/1000)}`);
+
+        console.log(`Training finished.`);
+        console.log(`Total processing time: ${(totalProcessingTime / 1000).toFixed(3)}s over ${iteration} iterations.`);
+        console.log(`Average time per batch: ${(totalProcessingTime / iteration / 1000).toFixed(4)}s`);
         console.log(model)
         
     } catch (error) {

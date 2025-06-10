@@ -1,40 +1,5 @@
-import { VISActivationData } from "../nn/train.js";
+import { VISActivationData, LayerType } from "./types_and_interfaces.js";
 import { assert, calculateMinMax } from "./utils.js";
-
-export type LayerType = 'dense' | 'conv' | 'flatten' | 'maxpool';
-
-export interface BaseNNLayer {
-    id: string;
-    type: LayerType;
-    element: HTMLElement;
-}
-
-export interface DenseNNLayer extends BaseNNLayer {
-    type: 'dense';
-    neurons: number;
-    activation: string;
-}
-
-export interface ConvNNLayer extends BaseNNLayer {
-    type: 'conv';
-    out_channels: number;
-    kernel_size: number;
-    stride: number;
-    padding: number;
-    activation: string;
-}
-
-export interface FlattenNNLayer extends BaseNNLayer {
-    type: 'flatten';
-}
-
-export interface MaxPool2DLayer extends BaseNNLayer {
-    type: 'maxpool';
-    pool_size: number;
-    stride: number;
-}
-
-export type NNLayer = DenseNNLayer | ConvNNLayer | FlattenNNLayer | MaxPool2DLayer;
 
 export function getLayerColor(type: LayerType): string {
     const colors = {
@@ -60,8 +25,6 @@ export function drawActivations(element: HTMLElement, A: VISActivationData, scal
     let H = A.shape[1]
     let W = A.shape[2]
     let C = A.shape[3]
-
-    console.log(A.shape)
 
     const mm = calculateMinMax(A.activationSample);
 

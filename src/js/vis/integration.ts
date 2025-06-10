@@ -1,14 +1,15 @@
 import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/nn.js';
 import * as afn from '../Val/activations.js';
 import { NeuralNetworkVisualizer } from './vis.js';
-import { LayerType, NNLayer } from '../utils/utils_vis.js';
+import { NNLayer } from '../utils/types_and_interfaces.js';
 import { Val } from '../Val/val.js';
 import { assert } from '../utils/utils.js';
 
 const AFN_MAP = {
     "relu": afn.relu,
     "sigmoid": afn.sigmoid,
-    "tanh": afn.tanh
+    "tanh": afn.tanh,
+    "softmax": afn.softmax
 }
 
 export function createEngineModelFromVisualizer(
