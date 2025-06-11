@@ -58,7 +58,19 @@ export class NeuralNetworkVisualizer {
         })
 
         document.getElementById('load-network-btn')?.addEventListener('click', ()=> {
-            this.loadNetworkFromLocalStorage();
+
+            if (!localStorage.getItem(this.STORAGE_KEY)) {
+                alert("No saved network found in browser storage.");
+                return;
+            }
+
+            const userConfirmed = confirm("Loading a saved network will overwrite your current progress. Are you sure you want to continue?");
+            
+            if (userConfirmed) {
+                this.loadNetworkFromLocalStorage();
+            } else {
+                console.log("load operation cancelled by the user.")
+            }
         });
         
         document.getElementById('clear-network-btn')?.addEventListener('click', ()=> {
@@ -77,6 +89,12 @@ export class NeuralNetworkVisualizer {
         })
     }
 
+    private clearNetwork() {
+        this.layers = [];
+        this.selected_layer = null;
+        if (this.container) this.container.innerHTML = '';
+    }
+
     private loadNetworkFromLocalStorage(): void {
         const statusDiv = document.getElementById('persistence-status');
         try {
@@ -92,7 +110,8 @@ export class NeuralNetworkVisualizer {
                 throw new Error("Saved data is not a valid network configuration.");
             }
 
-            this.layers = []
+            this.clearNetwork();
+            
             savedConfig.forEach(layerOptions=> {
                 this.addLayer(<LayerCreationOptions>layerOptions)
             });
