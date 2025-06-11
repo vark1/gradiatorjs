@@ -1,4 +1,4 @@
-import { VISActivationData, LayerType } from "./types_and_interfaces.js";
+import { VISActivationData, LayerType } from "../types_and_interfaces/general.js";
 import { assert, calculateMinMax } from "./utils.js";
 
 export function getLayerColor(type: LayerType): string {

@@ -2,7 +2,7 @@ import { Val } from "../Val/val.js";
 import { Sequential, Module, Dense, Conv } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
-import { VISActivationData } from "../utils/types_and_interfaces.js";
+import { VISActivationData } from "../types_and_interfaces/vis_interfaces.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
@@ -107,7 +107,7 @@ export async function trainModel(
 
                 if (batch_idx % update_ui_freq === 0) {
                     const accuracy = calcAccuracy(Y_pred, Y_batch);
-                    updateUICallback(e + 1, batch_idx, loss.data[0], accuracy, iterTime);
+                    updateUICallback(e, batch_idx, loss.data[0], accuracy, iterTime);
                 }
 
                 if (batch_idx % vis_freq === 0) {

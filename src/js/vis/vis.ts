@@ -2,10 +2,10 @@ import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset, prepa
 import { drawActivations, getLayerColor } from "../utils/utils_vis.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
-import { VISActivationData, LayerType, NNLayer } from "../utils/types_and_interfaces.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
-import { assert } from "utils/utils.js";
+import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
+import { VISActivationData, SerializableNNLayer, LayerCreationOptions } from "types_and_interfaces/vis_interfaces.js";
 
 let VISUALIZER: NeuralNetworkVisualizer;
 
@@ -15,6 +15,8 @@ export class NeuralNetworkVisualizer {
     private selected_layer: NNLayer | null = null;
     private config_panel: HTMLElement;
     private placeholder: HTMLElement;
+
+    private readonly STORAGE_KEY = 'neuralNetworkVisualizerConfig';
 
     constructor() {
         this.container = document.getElementById('network-container')!;
@@ -35,7 +37,83 @@ export class NeuralNetworkVisualizer {
             }
         })
 
-        this.setupDocument();
+        this.setupEventListeners();
+        this.loadNetworkFromLocalStorage();
+    }
+
+    private setupEventListeners() {
+        document.getElementById('add-dense')?.addEventListener('click', ()=> this.addLayer({type: 'dense', neurons: 2, activation: 'relu'}));
+        document.getElementById('add-conv')?.addEventListener('click', ()=> this.addLayer({type: 'conv', out_channels: 8, kernel_size: 5, stride: 2, padding: 2, activation: 'relu'}));
+        document.getElementById('add-flatten')?.addEventListener('click', ()=> this.addLayer({type:'flatten'}));
+        document.getElementById('add-maxpool')?.addEventListener('click', ()=> this.addLayer({type:'maxpool', pool_size: 2, stride: 2}));
+        document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges());
+        document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer());
+        
+        document.getElementById('save-network-btn')?.addEventListener('click', ()=> {
+            this.saveNetworkToLocalStorage();
+            const statusDiv = document.getElementById('persistence-status');
+            if (!statusDiv) return;
+            statusDiv.textContent = 'Network saved to browser storage.';
+            setTimeout(()=> { statusDiv.textContent = '';}, 2000);
+        })
+
+        document.getElementById('load-network-btn')?.addEventListener('click', ()=> {
+            this.loadNetworkFromLocalStorage();
+        });
+        
+        document.getElementById('clear-network-btn')?.addEventListener('click', ()=> {
+            localStorage.removeItem(this.STORAGE_KEY);
+            const statusDiv = document.getElementById('persistence-status');
+            if (statusDiv) statusDiv.textContent = 'Cleared saved network from browser storage.';
+            console.log("Cleared saved network.");
+        })
+    }
+
+    // Converts the current network layer structure into a serializable JSON object.
+    private getNetworkConfig(): SerializableNNLayer[] {
+        return this.layers.map(layer => {
+            const { element, ...serializableLayer} = layer;
+            return serializableLayer;
+        })
+    }
+
+    private loadNetworkFromLocalStorage(): void {
+        const statusDiv = document.getElementById('persistence-status');
+        try {
+            const jsonString = localStorage.getItem(this.STORAGE_KEY);
+            if (!jsonString) {
+                console.log("No saved network found in localStorage.");
+                if (statusDiv) statusDiv.textContent = 'No saved network found.';
+                return;
+            }
+
+            const savedConfig: SerializableNNLayer[] = JSON.parse(jsonString);
+            if (!Array.isArray(savedConfig)) {
+                throw new Error("Saved data is not a valid network configuration.");
+            }
+
+            this.layers = []
+            savedConfig.forEach(layerOptions=> {
+                this.addLayer(<LayerCreationOptions>layerOptions)
+            });
+
+            console.log("successfully loaded network from localstorage")
+            if (statusDiv) statusDiv.textContent = 'Loaded network from browser storage.';
+        } catch (e) {
+            console.error("Error loading network from localStorage:", e);
+            if (statusDiv) statusDiv.textContent = `Error: Could not load network.`;
+        }
+    }
+
+    private saveNetworkToLocalStorage(): void {
+        try {
+            const networkConfig = this.getNetworkConfig();
+            const jsonString = JSON.stringify(networkConfig);
+            localStorage.setItem(this.STORAGE_KEY, jsonString);
+            console.log("network configuration saved")
+        } catch (e) {
+            console.log("Error in saving to local storage: ", e);
+        }
     }
 
     private createLayerElement(layerData: NNLayer): HTMLElement {
@@ -67,59 +145,50 @@ export class NeuralNetworkVisualizer {
         return layer_element;
     }
 
-    private setupDocument() {
-        document.getElementById('add-dense')?.addEventListener('click', ()=> this.addLayer('dense'));
-        document.getElementById('add-conv')?.addEventListener('click', ()=> this.addLayer('conv'));
-        document.getElementById('add-flatten')?.addEventListener('click', ()=> this.addLayer('flatten'));
-        document.getElementById('add-maxpool')?.addEventListener('click', ()=> this.addLayer('maxpool'));
-        document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges())
-        document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer())
-    }
-
-    addLayer(type: LayerType) {
+    addLayer(options: LayerCreationOptions): void {
         let newLayer: NNLayer;
         const id = `layer-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        switch(type) {
+
+        switch(options.type) {
             case 'dense':
                 newLayer = {
-                    id: id, 
-                    type: type, 
-                    neurons: 8, 
-                    activation: 'relu', 
+                    id,
+                    type: options.type, 
+                    neurons: options.neurons, 
+                    activation: options.activation, 
                     element: null as any
                 };
                 break;
             case 'conv':
-                const outChannels = 16;
                 newLayer = {
-                    id: id, 
-                    type: type, 
-                    out_channels: outChannels, 
-                    kernel_size: 3, 
-                    stride: 1, 
-                    padding: 0, 
-                    activation: 'relu', 
+                    id, 
+                    type: options.type, 
+                    out_channels: options.out_channels, 
+                    kernel_size: options.kernel_size, 
+                    stride: options.stride, 
+                    padding: options.padding, 
+                    activation: options.activation, 
                     element: null as any
                 };
                 break;
             case 'flatten':
                 newLayer = {
-                    id: id,
-                    type: type,
+                    id,
+                    type: options.type,
                     element: null as any
                 }
                 break;
             case "maxpool":
                 newLayer = {
-                    id: id,
-                    type: type,
+                    id,
+                    type: options.type,
+                    pool_size: options.pool_size,
+                    stride: options.stride, 
                     element: null as any,
-                    pool_size: 2,
-                    stride: 1
                 }
                 break;
             default:
-                console.error("Unknown layer type:", type);
+                console.error("Unknown layer type for options:", options);
                 return;
         }
 
@@ -128,6 +197,7 @@ export class NeuralNetworkVisualizer {
 
         this.layers.push(newLayer)
         this.container.appendChild(layer_element);
+        this.saveNetworkToLocalStorage();
     }
 
     deleteSelectedLayer() {
@@ -237,7 +307,7 @@ export class NeuralNetworkVisualizer {
     private applyLayerChanges() {
         if (!this.selected_layer) return;
 
-        const activation = (document.getElementById('activation-select') as HTMLSelectElement).value;
+        const activation = <ActivationType>(document.getElementById('activation-select') as HTMLSelectElement).value;
 
         switch (this.selected_layer.type) {
             case 'dense':

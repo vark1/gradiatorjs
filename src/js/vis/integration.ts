@@ -1,7 +1,7 @@
 import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/nn.js';
 import * as afn from '../Val/activations.js';
 import { NeuralNetworkVisualizer } from './vis.js';
-import { NNLayer } from '../utils/types_and_interfaces.js';
+import { NNLayer } from '../types_and_interfaces/general.js';
 import { Val } from '../Val/val.js';
 import { assert } from '../utils/utils.js';
 
