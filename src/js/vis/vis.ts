@@ -197,7 +197,6 @@ export class NeuralNetworkVisualizer {
 
         this.layers.push(newLayer)
         this.container.appendChild(layer_element);
-        this.saveNetworkToLocalStorage();
     }
 
     deleteSelectedLayer() {
