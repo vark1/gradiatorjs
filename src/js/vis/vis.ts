@@ -1,5 +1,5 @@
 import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset, prepareMNISTData } from "../utils/utils_datasets.js";
-import { drawActivations, getLayerColor } from "../utils/utils_vis.js";
+import { drawActivations, drawHeatMap1D, getLayerColor } from "../utils/utils_vis.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
@@ -441,90 +441,6 @@ async function handleRunClick() {
     console.log(model);
 }
 
-function renderToCanvas(
-    activationData: Float64Array,
-    canvas: HTMLCanvasElement,
-    renderType: 'heatmap1d' | 'feature_map',
-    gridWidth?: number,
-    gridHeight?: number
-): void {
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return;
-
-    const canvasWidth = canvas.width
-    const canvasHeight = canvas.height
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    if (!activationData || activationData.length === 0) {
-        ctx.fillStyle = '#ddd'; 
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        return;
-    }
-
-    let minVal = activationData[0];
-    let maxVal = activationData[0];
-    for (let i=1; i<activationData.length; i++) {
-        if(activationData[i] < minVal) minVal = activationData[i];
-        if(activationData[i] > maxVal) maxVal = activationData[i];
-    }
-    
-    const range = maxVal - minVal;
-    const scale = range === 0? 1: 255/range;
-
-    if (renderType === 'heatmap1d' && gridWidth) {
-        const blockWidth = canvasWidth / gridWidth;
-        for (let i=0; i<gridWidth && i<activationData.length; i++) {
-            const normalizedVal = range === 0 ? 0.5 : (activationData[i] - minVal)/range;
-            const grayVal = Math.max(0, Math.min(255, Math.round(normalizedVal * 255)))
-            ctx.fillStyle = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
-            ctx.fillRect(Math.floor(i*blockWidth), 0, Math.ceil(blockWidth), canvasHeight);
-        }
-    } else if(renderType === 'feature_map' && gridHeight && gridWidth) {
-        if (activationData.length !== gridWidth * gridHeight) {
-            console.warn(`Feature map data size mismatch for rendering: ${activationData.length} vs ${gridWidth * gridHeight}`)
-            ctx.fillStyle = '#fdd'; ctx.fillRect(0,0, canvasWidth, canvasHeight); 
-            return;
-        }
-
-        const imageData = ctx.createImageData(gridWidth, gridHeight);
-        const data = imageData.data;
-        for (let i=0; i<activationData.length; i++) {
-            const normalizedValue = range === 0 ? 0.5 : (activationData[i] - minVal) / range;
-            const grayVal = Math.max(0, Math.min(255, Math.round(normalizedValue * 255)));
-            const pixelIdx = i*4;
-            data[pixelIdx] = grayVal; 
-            data[pixelIdx+1] = grayVal; 
-            data[pixelIdx+2] = grayVal;
-            data[pixelIdx + 3] = 255;
-        }
-
-        ctx.imageSmoothingEnabled = false;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = gridWidth;
-        tempCanvas.height = gridHeight;
-        tempCanvas.getContext('2d')?.putImageData(imageData, 0, 0);
-        ctx.drawImage(tempCanvas, 0, 0, canvasWidth, canvasHeight);
-    } else {
-        ctx.fillStyle = '#eee'; ctx.fillRect(0,0, canvasWidth, canvasHeight);
-        ctx.fillStyle = 'red'; ctx.fillText('Render type error', 5, 10);
-    }
-}
-
-// helper to render fallback text on canvas
-function renderFallbackText(canvas: HTMLCanvasElement, text: string) {
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#e0e0e0';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#555';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, canvas.width/2, canvas.height/2);
-    }
-}
-
 const activationPanelContainer = document.getElementById('activation-details-panel');
 
 function updateTrainingStatusUI(epoch: number, batch_idx: number, loss: number, accuracy: number, iterTime: number) {
@@ -542,100 +458,40 @@ function updateActivationVis(activationData: VISActivationData[]) {
     if (!VISUALIZER)                { console.error('Visualizer not found'); return; }
     if (!activationPanelContainer)  { console.error('Activation panel container not found'); return; }
 
-    const vizLayers = (VISUALIZER as any).layers as NNLayer[];
+    const vizLayers = <NNLayer[]>(<any>VISUALIZER).layers;
 
     activationData.forEach(actData => {
-        if (actData.layerIdx < vizLayers.length) {
-            const vizLayer = vizLayers[actData.layerIdx];
-            const layerElement = vizLayer.element;
-
-            let layerActivationContainerId = `act-vis-layer-${vizLayer.id}`;
-            let layerActivationContainer = document.getElementById(layerActivationContainerId);
-
-            if (!layerActivationContainer) {
-                layerActivationContainer = document.createElement('div');
-                layerActivationContainer.id = layerActivationContainerId;
-
-                const title = document.createElement('h4');
-                title.textContent = `Layer ${actData.layerIdx + 1}: ${vizLayer.type}`;
-                layerActivationContainer.appendChild(title);
-
-                const canvasWrapper = document.createElement('div');
-                canvasWrapper.className = 'activation-maps-wrapper';
-                layerActivationContainer.appendChild(canvasWrapper);
-
-                activationPanelContainer.appendChild(layerActivationContainer);
-            }
-
-            const canvasWrapper = layerActivationContainer.querySelector('.activation-maps-wrapper') as HTMLElement;
-            if (!canvasWrapper) return;
-
-            let canvasId = `act-canvas-${vizLayer.id}-map0`; // ID for the first map/heatmap
-            let canvas = document.getElementById(canvasId) as HTMLCanvasElement;
-            if (!canvas) {
-                canvas = document.createElement('canvas');
-                canvas.id = canvasId;
-                canvas.style.border = '1px solid #ccc';
-                canvas.style.backgroundColor = '#f8f8f8';
-                canvasWrapper.appendChild(canvas);
-            }
-
-            if (!actData.activationSample || actData.activationSample.length === 0) {
-                renderFallbackText(canvas, 'no activation data');
-                return;
-            }
-
-            if (actData.layerType === 'dense') {
-                const numActivations = actData.activationSample.length;
-                canvas.style.width = '100%';
-                canvas.style.height = '15px';
-                canvas.width = Math.min(numActivations, 256);
-                canvas.height = 15;
-                renderToCanvas(actData.activationSample, canvas, 'heatmap1d', numActivations);
-            } else if (actData.layerType === 'conv') {
-                if (actData.shape.length === 4 && actData.shape[0] === 1) {
-
-                    drawActivations(activationPanelContainer, actData, 4)
-                    
-                    const H_out = actData.shape[1];
-                    const W_out = actData.shape[2];
-                    const C_out = actData.shape[3];
-                    const singleMapSize = H_out * W_out;
-
-                    if (singleMapSize > 0 && C_out > 0 && actData.activationSample.length === singleMapSize * C_out) {
-                        // xtracting data for the first feature map (channel 0)
-                        const firstMapData = new Float64Array(singleMapSize);
-                        for (let i=0; i<singleMapSize; i++) {
-                            firstMapData[i] = actData.activationSample[i * C_out + 0];
-                        }
-
-                        canvas.width = W_out;
-                        canvas.height = H_out;
-                        canvas.style.imageRendering = 'pixelated';
-
-                        const maxDisplayDim = 48;
-                        let displayW, displayH;
-                        if (W_out >= H_out) { // wider or square
-                            displayW = maxDisplayDim;
-                            displayH = Math.round(maxDisplayDim * (H_out / W_out));
-                        } else {              // taller
-                            displayH = maxDisplayDim;
-                            displayW = Math.round(maxDisplayDim * (W_out / H_out));
-                        }
-                        canvas.style.width = `${displayW}px`;
-                        canvas.style.height = `${displayH}px`;
-
-                        renderToCanvas(firstMapData, canvas, 'feature_map', W_out, H_out);
-                    } else {
-                        renderFallbackText(canvas, `Conv data error (S:${actData.activationSample.length} vs E:${singleMapSize * C_out})`)
-                    }
-                    
-                } else {
-                    renderFallbackText(canvas, `Conv shape error (${actData.shape.join(',')})`);
-                }
-            } else {
-                renderFallbackText(canvas, `Type? (${actData.layerType})`);
-            }
+        if (actData.layerIdx >= vizLayers.length) {
+            return;
         }
+        const vizLayer = vizLayers[actData.layerIdx];
+
+        let layerActivationContainerId = `act-vis-layer-${vizLayer.id}`;
+        let layerActivationContainer = document.getElementById(layerActivationContainerId);
+
+        if (!layerActivationContainer) {
+            layerActivationContainer = document.createElement('div');
+            layerActivationContainer.id = layerActivationContainerId;
+
+            const title = document.createElement('h4');
+            title.textContent = `Layer ${actData.layerIdx + 1}: ${vizLayer.type}`;
+            layerActivationContainer.appendChild(title);
+
+            const canvasWrapper = document.createElement('div');
+            canvasWrapper.className = 'activation-maps-wrapper';
+            layerActivationContainer.appendChild(canvasWrapper);
+
+            activationPanelContainer.appendChild(layerActivationContainer);
+        }
+
+        const canvasWrapper = <HTMLElement>layerActivationContainer.querySelector('.activation-maps-wrapper');
+        if (!canvasWrapper) return;
+
+        if (actData.layerType === 'dense') {
+            drawHeatMap1D(canvasWrapper, actData, vizLayer.id)
+        } else if (actData.layerType === 'conv') {
+            drawActivations(canvasWrapper, actData, vizLayer.id)
+        } else if (actData.layerType === 'maxpool') {
+        } else if (actData.layerType === 'flatten') {}
     });
 }
