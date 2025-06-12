@@ -258,6 +258,7 @@ export function mean(t: Val, axis?: number, keepdims = false) : Val {
     return out;
 }
 
+// TODO: Need to optimize this yesterday
 /**
  * X: input     : [batch_size, n_height, n_width, n_channels]
  * F: filter    : [c_outputchannels, filter_size, filter_size, n_channels]

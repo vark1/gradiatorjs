@@ -1,8 +1,9 @@
 import { Val } from "../Val/val.js";
-import { Sequential, Module, Dense, Conv } from "./nn.js";
+import { Sequential, Dense, Conv, MaxPool2D, Flatten } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
 import { VISActivationData } from "../types_and_interfaces/vis_interfaces.js";
+import { assert } from "../utils/utils.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
@@ -112,16 +113,38 @@ export async function trainModel(
 
                 if (batch_idx % vis_freq === 0) {
                     let activationVisData: VISActivationData[] = [];
+
+                    assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
                     const sampleX_for_vis = new Val(X_batch.shape.slice(1)).reshape([1, ...X_batch.shape.slice(1)])
                     sampleX_for_vis.data = X_batch.data.slice(0, X_batch.size / X_batch.shape[0]);
-                    const allActivations = model.getActivations(sampleX_for_vis);
 
-                    activationVisData = allActivations.slice(1).map((actVal, idx) => {
+                    const layerOutputs = model.getLayerOutputs(sampleX_for_vis);
+
+                    activationVisData = model.layers.map((engineLayer, layerModelIdx) => {
+                        const output = layerOutputs[layerModelIdx];
+                        let layerType: VISActivationData['layerType'] = 'dense';
+                        let zVal: Val | null = output.Z;
+                        let aVal: Val | null = output.A;
+
+                        if (engineLayer instanceof Dense) {
+                            layerType = 'dense';
+                        } else if (engineLayer instanceof Conv) {
+                            layerType = 'conv';
+                        } else if (engineLayer instanceof MaxPool2D) {
+                            layerType = 'maxpool';
+                            zVal = aVal;
+                        } else if (engineLayer instanceof Flatten) {
+                            layerType = 'flatten';
+                            zVal = aVal;
+                        }
+
                         return {
-                            layerIdx: idx,
-                            layerType: model.layers[idx] instanceof Conv ? 'conv': 'dense',
-                            shape: actVal ? [...actVal.shape] : [],
-                            activationSample: actVal.data ? actVal.data : new Float64Array([])
+                            layerIdx: layerModelIdx,
+                            layerType: layerType,
+                            zShape: zVal ? [...zVal.shape] : [],
+                            aShape: aVal ? [...aVal.shape] : [],
+                            zSample: zVal ? Float64Array.from(zVal.data) : null,
+                            aSample: aVal ? Float64Array.from(aVal.data) : null,                            
                         }
                     })
                     updateActivationVis(activationVisData);

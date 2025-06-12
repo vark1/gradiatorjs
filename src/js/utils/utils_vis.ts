@@ -26,24 +26,31 @@ function findOrCreateCanvas(wrapper: HTMLElement, canvasId: string): HTMLCanvasE
     return canv;
 }
 
-export function drawActivations(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string) {
+export function drawActivations(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string, showActivations: boolean) {
 
-    if (actData.shape.length !== 4 && actData.shape[0] !== 1 || !actData.activationSample || actData.activationSample.length === 0) {
-        console.log(`Conv shape error (${actData.shape.join(',')})`);
+    let shape = actData.zShape;
+    let sample = actData.zSample;
+    if (showActivations) {
+        shape = actData.aShape;
+        sample = actData.aSample;
+    }
+
+    if (shape.length !== 4 && shape[0] !== 1 || !sample || sample.length === 0) {
+        console.log(`Conv shape error (${shape.join(',')})`);
         return;
     }
 
-    let H_out = actData.shape[1];
-    let W_out = actData.shape[2];
-    let C_out = actData.shape[3];
+    let H_out = shape[1];
+    let W_out = shape[2];
+    let C_out = shape[3];
     const singleMapSize = H_out * W_out;
 
-    if (singleMapSize <= 0 || C_out <= 0 || actData.activationSample.length !== singleMapSize * C_out) {
-        console.log(`Conv data error (S:${actData.activationSample.length} vs E:${singleMapSize * C_out})`);
+    if (singleMapSize <= 0 || C_out <= 0 || sample.length !== singleMapSize * C_out) {
+        console.log(`Conv data error (S:${sample.length} vs E:${singleMapSize * C_out})`);
         return;
     }
 
-    const mm = calculateMinMax(actData.activationSample);
+    const mm = calculateMinMax(sample);
 
     for (let c=0; c<C_out; c++) {
         const canvasId = `act-canvas-${vizLayerId}-map${c}`;
@@ -52,7 +59,7 @@ export function drawActivations(canvWrapper: HTMLElement, actData: VISActivation
         // xtracting data for the feature map (channel x)
         const xMapData = new Float64Array(singleMapSize);
         for (let i=0; i<singleMapSize; i++) {
-            xMapData[i] = actData.activationSample[i * C_out + c];
+            xMapData[i] = sample[i * C_out + c];
         }
 
         canv.width = W_out;
@@ -105,18 +112,25 @@ export function drawActivations(canvWrapper: HTMLElement, actData: VISActivation
     }
 }
 
-export function drawHeatMap1D(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string) {
-    
-    if(actData.shape.length !== 2 || actData.shape[0] !== 1) {
-        console.log(`Dense shape error (${actData.shape.join(',')})`);
+export function drawHeatMap1D(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string, showActivations: boolean) {
+
+    let shape = actData.zShape;
+    let sample = actData.zSample;
+    if (showActivations) {
+        shape = actData.aShape;
+        sample = actData.aSample;
+    }
+
+    if(shape.length !== 2 || shape[0] !== 1) {
+        console.log(`Dense shape error (${shape.join(',')})`);
         return;
     }
-    if (!actData.activationSample || actData.activationSample.length === 0) {
+    if (!sample || sample.length === 0) {
         console.log("no activation data");
         return;
     }
 
-    const numActivations = actData.shape[1];
+    const numActivations = shape[1];
     const canvasId = `act-canvas-${vizLayerId}-heatmap`;
     const canv = findOrCreateCanvas(canvWrapper, canvasId)
     canv.style.width = '100%';
@@ -124,7 +138,7 @@ export function drawHeatMap1D(canvWrapper: HTMLElement, actData: VISActivationDa
     canv.width = Math.min(numActivations, 256);
     canv.height = 15;
 
-    const mm = calculateMinMax(actData.activationSample)
+    const mm = calculateMinMax(sample)
 
     // rendering
     const ctx = canv.getContext('2d')
@@ -135,8 +149,8 @@ export function drawHeatMap1D(canvWrapper: HTMLElement, actData: VISActivationDa
     const scale = mm.dv === 0? 1: 255/mm.dv;
 
     const blockWidth = canv.width / numActivations;
-    for (let i=0; i<numActivations && i<actData.activationSample.length; i++) {
-        const normalizedVal = mm.dv === 0 ? 0.5 : (actData.activationSample[i] - mm.minv)/mm.dv;
+    for (let i=0; i<numActivations && i<sample.length; i++) {
+        const normalizedVal = mm.dv === 0 ? 0.5 : (sample[i] - mm.minv)/mm.dv;
         const grayVal = Math.max(0, Math.min(255, Math.round(normalizedVal * 255)))
         ctx.fillStyle = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
         ctx.fillRect(Math.floor(i*blockWidth), 0, Math.ceil(blockWidth), canv.height);

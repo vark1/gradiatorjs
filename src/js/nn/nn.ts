@@ -9,6 +9,11 @@ A module represents a base class that will manage parameters or zero grads.
 It will automatically find all the trainable Val instances within a potentially complex structure (model/layer)
 */
 export class Module {
+
+    // Properties to cache the last pre-activation (Z) and post-activation (A) outputs
+    public last_Z: Val | null = null;
+    public last_A: Val | null = null;
+
     parameters() : Val[] {
         let params: Val[] = [];
         for (const key in this) {
@@ -33,6 +38,10 @@ export class Module {
     zeroGrad() : void {
         this.parameters().forEach(p => p.grad.fill(0));
     }
+
+    forward(X: Val): Val {
+        throw new Error("Forward method not implemented.");
+    }
 }
 
 /*Dense/fully connected layer (A = nonlin(Wt.X + B))*/
@@ -45,34 +54,27 @@ export class Dense extends Module {
 
     constructor (nin: number, nout: number, activation?:(t: Val) => Val) {
         super();
-        this.nin = nin;
-        this.nout = nout;
-
+        this.nin = nin; this.nout = nout;
         this.W = new Val([nin, nout]);
         this.W.data = this.W.data.map(()=>gaussianRandom() * Math.sqrt(2.0/nin));
-
         this.B = new Val([1, nout], 0.1);
-        this.activation = activation
+        this.activation = activation;
     }
 
     forward(X_input: Val) : Val {
-        // X.shape = [batchsize, nin]
-        let X = X_input;
-
-        // X should be either 1D or 2D
-        if (X_input.dim === 1) {
-            // reshaping [nin] to [1, nin]
-            X = X_input.reshape([1, X_input.shape[0]]);
-        } else if(X.dim !== 2) {
-            throw new Error(`Dense layer expects dim 1 or 2, got ${X_input.dim}`);
+        let X = X_input;    // X.shape = [batchsize, nin]
+        
+        if (X_input.dim === 1) {    // X should be either 1D or 2D
+            X = X.reshape([1, X.shape[0]]);     // reshaping [nin] to [1, nin]
         }
-
-        if (X.shape[1] !== this.nin) {
-            throw new Error(`Input features ${X.shape[1]} don't match layer input size ${this.nin}`)
-        }
+        assert (X.dim === 2, ()=> `Dense layer expects dim 1 or 2, got ${X_input.dim}`)
+        assert(X.shape[1] === this.nin, ()=>`Input features ${X.shape[1]} don't match layer input size ${this.nin}`);
 
         const Z = op.add(op.dot(X, this.W), this.B);
         const A = this.activation ? this.activation(Z) : Z;
+
+        this.last_Z = Z;
+        this.last_A = A;
         return A;
     }
 }
@@ -90,21 +92,13 @@ export class Conv extends Module {
 
     constructor(in_channels: number, out_channels: number, kernel_size: number, stride: number, padding: number, activation?:(t: Val) => Val) {
         super();
-        
-        this.in_channels = in_channels;
-        this.out_channels = out_channels;
-        this.kernel_size = kernel_size;
-        this.kernel = new Val([out_channels, kernel_size, kernel_size, in_channels])
-        this.stride = stride
-        this.padding = padding
+        this.in_channels = in_channels; this.out_channels = out_channels;
+        this.kernel_size = kernel_size; this.stride = stride; this.padding = padding;
         this.activation = activation
-
+        this.kernel = new Val([out_channels, kernel_size, kernel_size, in_channels])
         const fan_in = in_channels * kernel_size * kernel_size;
         this.kernel.data = this.kernel.data.map(()=> gaussianRandom()*Math.sqrt(2.0/fan_in));
-
-        const biasShape = [out_channels];
-        this.biases = new Val(biasShape);
-        this.biases.data.fill(0.1);
+        this.biases = new Val([out_channels], 0.1);
     }
 
     forward(X_input: Val): Val {
@@ -123,7 +117,7 @@ export class Conv extends Module {
 
         const Z_with_bias = new Val([B_batch, H_out, W_out, this.out_channels]);
         
-        // Need to optimize this yesterday
+        // TODO: Need to optimize this yesterday
         for (let b=0; b<B_batch; b++) {
             for (let h=0; h<H_out; h++) {
                 for (let w=0; w<W_out; w++) {
@@ -158,15 +152,26 @@ export class Conv extends Module {
         }
 
         const A = this.activation? this.activation(Z_with_bias) : Z_with_bias;
+        this.last_Z = Z_with_bias;
+        this.last_A = A;
         return A;
     }
 }
 
 export class Flatten extends Module {
     forward(X: Val): Val {
-        assert(X.dim === 4, ()=>`Flatten's input is not 4D. found: ${X.dim}`)
+        assert(X.dim > 1, ()=>`FlattenLayer expects input with at least 2 dimensions.`);
+        if (X.dim === 2) {
+            this.last_Z = X; this.last_A = X; return X;
+        }
 
-        return X.reshape([X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]]);
+        const batchSize = X.shape[0];
+        const features = X.size / batchSize;
+        const Y = X.reshape([batchSize, features]);
+
+        this.last_Z = Y;
+        this.last_A = Y;
+        return Y;
     }
 }
 
@@ -181,11 +186,13 @@ export class MaxPool2D extends Module {
     }
 
     forward(X: Val) : Val {
-        return op.maxPool2d(X, this.pool_size, this.stride);
+        const Y = op.maxPool2d(X, this.pool_size, this.stride);        
+        this.last_Z = Y;
+        this.last_A = Y;
+        return Y;
     }
 }
 
-/*Sequential model (this is basically an MLP)*/
 export class Sequential extends Module {
     layers: Module[];
 
@@ -197,26 +204,20 @@ export class Sequential extends Module {
     forward(X: Val) : Val {
         let currentOutput = X;
         for (const layer of this.layers) {
-            if (typeof (layer as any).forward === 'function') {
-                currentOutput = (layer as any).forward(currentOutput);
-            } else {
-                throw new Error("Item in sequential model does not have a forward method.")
-            }
+            currentOutput = layer.forward(currentOutput);
         }
+        this.last_A = currentOutput;
         return currentOutput;
     }
 
-    getActivations(X: Val) : Val[] {
-        let currentOutput = X;
-        let activations : Val[] = [X];
-        for (const layer of this.layers) {
-            if (typeof (layer as any).forward === 'function') {
-                currentOutput = (layer as any).forward(currentOutput);
-                activations.push(currentOutput)
-            } else {
-                throw new Error("Item in sequential model does not have a forward method")
-            }
-        }
-        return activations;
+    // Performs a forward pass and returns the intermediate pre- and post-activation
+    // outputs of each layer in the sequence. 
+    getLayerOutputs(X: Val): {Z: Val|null, A: Val|null}[] {
+        this.forward(X);
+        const outputs = this.layers.map(layer => ({
+            Z: layer.last_Z,
+            A: layer.last_A
+        }));
+        return outputs;
     }
 }

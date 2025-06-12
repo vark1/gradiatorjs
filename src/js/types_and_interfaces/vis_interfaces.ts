@@ -32,6 +32,8 @@ interface FlattenLayerOptions {
 export interface VISActivationData {
     layerIdx: number;
     layerType: LayerType;
-    shape: number[];
-    activationSample: Float64Array;
+    zShape: number[];
+    aShape: number[];
+    zSample: Float64Array | null;
+    aSample: Float64Array | null;
 }

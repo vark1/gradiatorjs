@@ -5,7 +5,7 @@ import { trainModel } from "../nn/train.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
 import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
-import { VISActivationData, SerializableNNLayer, LayerCreationOptions } from "types_and_interfaces/vis_interfaces.js";
+import { VISActivationData, SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
 
 let VISUALIZER: NeuralNetworkVisualizer;
 
@@ -488,9 +488,9 @@ function updateActivationVis(activationData: VISActivationData[]) {
         if (!canvasWrapper) return;
 
         if (actData.layerType === 'dense') {
-            drawHeatMap1D(canvasWrapper, actData, vizLayer.id)
+            drawHeatMap1D(canvasWrapper, actData, vizLayer.id, true)
         } else if (actData.layerType === 'conv') {
-            drawActivations(canvasWrapper, actData, vizLayer.id)
+            drawActivations(canvasWrapper, actData, vizLayer.id, true)
         } else if (actData.layerType === 'maxpool') {
         } else if (actData.layerType === 'flatten') {}
     });
