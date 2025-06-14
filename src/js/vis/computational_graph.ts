@@ -69,34 +69,42 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
             
             const shape = actVal.shape;
             const isSpatial = shape.length === 4;
-            const numMaps = isSpatial ? shape[3] : shape[1] || 1;
-            const mapH = isSpatial ? shape[1] : numMaps; // For heatmap, height is num neurons
-            const mapW = isSpatial ? shape[2] : 1;      // For heatmap, width is 1
-            const mapSize = mapH * mapW;
 
-            for (let m=0; m<numMaps; m++) {
-                const canv = document.createElement('canvas');
-                const mapData = new Float64Array(mapSize);
-
-                if(isSpatial) {
+            if (isSpatial) {    // conv and maxpool
+                const [_, H, W, C] = shape;
+                for (let m=0; m<C; m++) {
+                    const canv = document.createElement('canvas');
+                    const mapSize = H*W;
+                    const mapData = new Float64Array(mapSize);
                     for (let pix=0; pix<mapSize; pix++) {
-                        mapData[pix] = actVal.data[pix*numMaps + m];
+                        mapData[pix] = actVal.data[pix*C + m];
                     }
-                    renderFeatureMap(canv, mapData, mapW, mapH);
-                } else {
-                    mapData[m] = actVal.data[m];
-                    renderFeatureMap(canv, mapData, 1, numMaps);
-                    const displaySize = Math.max(8, 64 / Math.sqrt(numMaps));
-                    canv.style.width = '12px';
-                    canv.style.height = `${displaySize * 1.5}px`;
+                    renderFeatureMap(canv, mapData, W, H);
+                    const maxDisplayDim = 48;
+                    let displayW, displayH;
+                    if (W >= H) {       // Wider or square
+                        displayW = maxDisplayDim;
+                        displayH = Math.round(maxDisplayDim * (H / W)) || 1;
+                    } else {            // Taller
+                        displayH = maxDisplayDim;
+                        displayW = Math.round(maxDisplayDim * (W / H)) || 1;
+                    }
+                    canv.style.width = `${displayW}px`
+                    canv.style.height = `${displayH}px`
+                    canv.title = `Channel ${m + 1}/${C} (Size: ${W}x${H})`;
+
                     col.appendChild(canv);
                     currentLayerElements.push(canv);
-                    break;
                 }
+            } else {    // dense and flatten
+                const numNeurons = shape[1] || 1;
+                const canv = document.createElement('canvas');
+                renderFeatureMap(canv, actVal.data, 1, numNeurons);
+                
+                canv.style.width = '16px';
+                canv.style.height = '128px';
+                canv.title = `${numNeurons} neurons`;
 
-                const displaySize = Math.max(8, 64/ Math.sqrt(numMaps));
-                canv.style.width = `${displaySize}px`;
-                canv.style.height = `${displaySize}px`;
                 col.appendChild(canv);
                 currentLayerElements.push(canv);
             }
@@ -118,8 +126,8 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
         };
 
         // Create labels for Z and A
-        let zLabel = `${engineLayer.constructor.name}\npre-activation`;
-        let aLabel = `${engineLayer.constructor.name}\npost-activation`;
+        let zLabel = `${engineLayer.constructor.name.replace('Layer', '')}\n(Z)`;
+        let aLabel = `${engineLayer.constructor.name.replace('Layer', '')}\n(A)`;
         if (engineLayer instanceof MaxPool2D) zLabel = `MaxPool\n${engineLayer.pool_size}x${engineLayer.pool_size} P, S${engineLayer.stride}`;
         if (engineLayer instanceof Flatten) zLabel = "Flatten";
         if (!(engineLayer instanceof Dense || engineLayer instanceof Conv) || !engineLayer.activation) aLabel = '';
@@ -167,7 +175,7 @@ function drawConnectingLines(svg: SVGSVGElement, fromElements: HTMLElement[], to
             line.setAttribute('x2', (toRect.left - containerRect.left).toString());
             line.setAttribute('y2', (toRect.top + toRect.height/2 - containerRect.top).toString());
 
-            const thickness = (toLayer instanceof Dense) ? Math.min(3, 0.1 + avgWeightMag * 10) : 0.5;
+            const thickness = (toLayer instanceof Dense) ? Math.min(3, 0.1 + avgWeightMag * 20) : 0.5;
             line.setAttribute('stroke-width', thickness.toString());
             svg.appendChild(line);
             linesDrawn++;
