@@ -6,6 +6,9 @@ import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
 import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
 import { VISActivationData, SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
+import { LayerOutputData, renderNetworkGraph } from "./computational_graph.js";
+import { Sequential } from "nn/nn.js";
+import { Val } from "Val/val.js";
 
 let VISUALIZER: NeuralNetworkVisualizer;
 
@@ -452,7 +455,7 @@ function updateTrainingStatusUI(epoch: number, batch_idx: number, loss: number, 
     Time per example=${(iterTime/1000).toFixed(4)}s`
 }
 
-function updateActivationVis(activationData: VISActivationData[]) {
+function updateActivationVis(activationData: VISActivationData[], model: Sequential, sampleX: Val) {
 
     if (!activationData)            { console.error('activation data not found'); return; }
     if (!VISUALIZER)                { console.error('Visualizer not found'); return; }
@@ -492,6 +495,17 @@ function updateActivationVis(activationData: VISActivationData[]) {
         } else if (actData.layerType === 'conv') {
             drawActivations(canvasWrapper, actData, vizLayer.id, true)
         } else if (actData.layerType === 'maxpool') {
-        } else if (actData.layerType === 'flatten') {}
+            drawActivations(canvasWrapper, actData, vizLayer.id, false)
+        } else if (actData.layerType === 'flatten') {
+            drawHeatMap1D(canvasWrapper, actData, vizLayer.id, false)
+        }
     });
+
+    const graphContainer = document.getElementById('graph-container')
+    if (!graphContainer) return;
+    const layerData: LayerOutputData[] = activationData.map(item=> ({
+        Z: item.zSample,
+        A: item.aSample
+    }))
+    renderNetworkGraph(graphContainer, layerData, model, sampleX)
 }

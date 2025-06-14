@@ -29,10 +29,10 @@ function findOrCreateCanvas(wrapper: HTMLElement, canvasId: string): HTMLCanvasE
 export function drawActivations(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string, showActivations: boolean) {
 
     let shape = actData.zShape;
-    let sample = actData.zSample;
+    let sample = actData.zSample?.data;
     if (showActivations) {
         shape = actData.aShape;
-        sample = actData.aSample;
+        sample = actData.aSample?.data;
     }
 
     if (shape.length !== 4 && shape[0] !== 1 || !sample || sample.length === 0) {
@@ -40,9 +40,7 @@ export function drawActivations(canvWrapper: HTMLElement, actData: VISActivation
         return;
     }
 
-    let H_out = shape[1];
-    let W_out = shape[2];
-    let C_out = shape[3];
+    const [_, H_out, W_out, C_out] = shape
     const singleMapSize = H_out * W_out;
 
     if (singleMapSize <= 0 || C_out <= 0 || sample.length !== singleMapSize * C_out) {
@@ -90,9 +88,7 @@ export function drawActivations(canvWrapper: HTMLElement, actData: VISActivation
             const normalizedValue = mm.dv === 0 ? 0.5 : (xMapData[i] - mm.minv) / mm.dv;
             const grayVal = Math.max(0, Math.min(255, Math.round(normalizedValue * 255)));
             const pixelIdx = i*4;
-            data[pixelIdx] = grayVal; 
-            data[pixelIdx+1] = grayVal; 
-            data[pixelIdx+2] = grayVal;
+            data[pixelIdx] = data[pixelIdx+1] = data[pixelIdx+2] = grayVal;
             data[pixelIdx + 3] = 255;
         }
         ctx.imageSmoothingEnabled = false;
@@ -115,10 +111,10 @@ export function drawActivations(canvWrapper: HTMLElement, actData: VISActivation
 export function drawHeatMap1D(canvWrapper: HTMLElement, actData: VISActivationData, vizLayerId: string, showActivations: boolean) {
 
     let shape = actData.zShape;
-    let sample = actData.zSample;
+    let sample = actData.zSample?.data;
     if (showActivations) {
         shape = actData.aShape;
-        sample = actData.aSample;
+        sample = actData.aSample?.data;
     }
 
     if(shape.length !== 2 || shape[0] !== 1) {

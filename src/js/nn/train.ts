@@ -58,7 +58,7 @@ export async function trainModel(
         loss: number, 
         accuracy: number, 
     ) => void,
-    updateActivationVis: (actvisdata: VISActivationData[])=> void
+    updateActivationVis: (actvisdata: VISActivationData[], model: Sequential, sampleX: Val)=> void
 ) : Promise<void> {
 
     console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
@@ -143,11 +143,13 @@ export async function trainModel(
                             layerType: layerType,
                             zShape: zVal ? [...zVal.shape] : [],
                             aShape: aVal ? [...aVal.shape] : [],
-                            zSample: zVal ? Float64Array.from(zVal.data) : null,
-                            aSample: aVal ? Float64Array.from(aVal.data) : null,                            
+                            // zSample: zVal ? Float64Array.from(zVal.data) : null,
+                            zSample: zVal ? zVal : null,
+                            // aSample: aVal ? Float64Array.from(aVal.data) : null,                            
+                            aSample: aVal ? aVal : null,
                         }
                     })
-                    updateActivationVis(activationVisData);
+                    updateActivationVis(activationVisData, model, sampleX_for_vis);
                 }
                 batch_idx++;
                 await yieldToBrowser();

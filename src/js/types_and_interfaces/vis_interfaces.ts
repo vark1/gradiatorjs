@@ -1,3 +1,4 @@
+import { Val } from "Val/val";
 import { ActivationType, NNLayer, LayerType } from "./general";
 
 export type LayerCreationOptions = DenseLayerOptions | ConvLayerOptions | MaxPoolLayerOptions | FlattenLayerOptions;
@@ -34,6 +35,6 @@ export interface VISActivationData {
     layerType: LayerType;
     zShape: number[];
     aShape: number[];
-    zSample: Float64Array | null;
-    aSample: Float64Array | null;
+    zSample: Val | null;
+    aSample: Val | null;
 }

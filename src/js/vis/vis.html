@@ -5,8 +5,10 @@
     <meta name="viewport"="width=device-width, initial-scale=1.0">
     <title>NN Visualizer</title>
     <link rel="stylesheet" href="../../css/vis.css">
+    <link rel="stylesheet" href="../../css/computational_graph.css">
     <script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.14/dist/browser/hdf5.js"></script>
     <script type="module" src="/dist/src/js/vis/vis.js"></script>
+    <script type="module" src="/dist/src/js/vis/computational_graph.js"></script>
     <script type="module" src="/dist/src/js/vis/integration.js"></script>
     <script type="module" src="/dist/src/js/utils/utils_data.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>   <!--To decompress gzip-->
@@ -118,7 +120,6 @@
             <label for="batch-size">Batch size:</label>
             <input type="number" id="batch-size" min="1" value="100">
         </div>
-        
     </div>
 
     <button id="run-model-btn">Run Model</button>
@@ -128,5 +129,9 @@
         <h2>Real-time Layer Activations</h2>
         <div id="activation-details-panel"></div>
     </div>
+
+    <h1>Network Graph Visualization</h1>
+    <div id="graph-container"></div>
+    <div id="filter-popup"></div>
 </body>
 </html>
