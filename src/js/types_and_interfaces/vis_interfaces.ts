@@ -30,11 +30,7 @@ interface FlattenLayerOptions {
     type: 'flatten';
 }
 
-export interface VISActivationData {
-    layerIdx: number;
-    layerType: LayerType;
-    zShape: number[];
-    aShape: number[];
-    zSample: Val | null;
-    aSample: Val | null;
+export interface LayerOutputData {
+    Z: Val | null;
+    A: Val | null;
 }

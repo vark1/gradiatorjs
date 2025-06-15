@@ -2,7 +2,7 @@ import { Val } from "../Val/val.js";
 import { Sequential, Dense, Conv, MaxPool2D, Flatten } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
-import { VISActivationData } from "../types_and_interfaces/vis_interfaces.js";
+import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
 
 function yieldToBrowser(): Promise<void> {
@@ -58,7 +58,7 @@ export async function trainModel(
         loss: number, 
         accuracy: number, 
     ) => void,
-    updateActivationVis: (actvisdata: VISActivationData[], model: Sequential, sampleX: Val)=> void
+    updateActivationVis: (actvisdata: LayerOutputData[], model: Sequential, sampleX: Val)=> void
 ) : Promise<void> {
 
     console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
@@ -112,7 +112,7 @@ export async function trainModel(
                 }
 
                 if (batch_idx % vis_freq === 0) {
-                    let activationVisData: VISActivationData[] = [];
+                    let activationVisData: LayerOutputData[] = [];
 
                     assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
                     const sampleX_for_vis = new Val(X_batch.shape.slice(1)).reshape([1, ...X_batch.shape.slice(1)])
@@ -122,31 +122,12 @@ export async function trainModel(
 
                     activationVisData = model.layers.map((engineLayer, layerModelIdx) => {
                         const output = layerOutputs[layerModelIdx];
-                        let layerType: VISActivationData['layerType'] = 'dense';
                         let zVal: Val | null = output.Z;
                         let aVal: Val | null = output.A;
 
-                        if (engineLayer instanceof Dense) {
-                            layerType = 'dense';
-                        } else if (engineLayer instanceof Conv) {
-                            layerType = 'conv';
-                        } else if (engineLayer instanceof MaxPool2D) {
-                            layerType = 'maxpool';
-                            zVal = aVal;
-                        } else if (engineLayer instanceof Flatten) {
-                            layerType = 'flatten';
-                            zVal = aVal;
-                        }
-
                         return {
-                            layerIdx: layerModelIdx,
-                            layerType: layerType,
-                            zShape: zVal ? [...zVal.shape] : [],
-                            aShape: aVal ? [...aVal.shape] : [],
-                            // zSample: zVal ? Float64Array.from(zVal.data) : null,
-                            zSample: zVal ? zVal : null,
-                            // aSample: aVal ? Float64Array.from(aVal.data) : null,                            
-                            aSample: aVal ? aVal : null,
+                            Z: zVal ? zVal : null,
+                            A: aVal ? aVal : null,
                         }
                     })
                     updateActivationVis(activationVisData, model, sampleX_for_vis);

@@ -1,12 +1,13 @@
 import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset, prepareMNISTData } from "../utils/utils_datasets.js";
-import { drawActivations, drawHeatMap1D, getLayerColor } from "../utils/utils_vis.js";
+import { getLayerColor } from "../utils/utils_vis.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
 import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
-import { VISActivationData, SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
-import { LayerOutputData, renderNetworkGraph } from "./computational_graph.js";
+import { SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
+import { renderNetworkGraph } from "./computational_graph.js";
+import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
 import { Sequential } from "nn/nn.js";
 import { Val } from "Val/val.js";
 
@@ -455,57 +456,12 @@ function updateTrainingStatusUI(epoch: number, batch_idx: number, loss: number, 
     Time per example=${(iterTime/1000).toFixed(4)}s`
 }
 
-function updateActivationVis(activationData: VISActivationData[], model: Sequential, sampleX: Val) {
-
-    if (!activationData)            { console.error('activation data not found'); return; }
+function updateActivationVis(layerData: LayerOutputData[], model: Sequential, sampleX: Val) {
+    if (!layerData)            { console.error('activation data not found'); return; }
     if (!VISUALIZER)                { console.error('Visualizer not found'); return; }
     if (!activationPanelContainer)  { console.error('Activation panel container not found'); return; }
 
-    const vizLayers = <NNLayer[]>(<any>VISUALIZER).layers;
-
-    activationData.forEach(actData => {
-        if (actData.layerIdx >= vizLayers.length) {
-            return;
-        }
-        const vizLayer = vizLayers[actData.layerIdx];
-
-        let layerActivationContainerId = `act-vis-layer-${vizLayer.id}`;
-        let layerActivationContainer = document.getElementById(layerActivationContainerId);
-
-        if (!layerActivationContainer) {
-            layerActivationContainer = document.createElement('div');
-            layerActivationContainer.id = layerActivationContainerId;
-
-            const title = document.createElement('h4');
-            title.textContent = `Layer ${actData.layerIdx + 1}: ${vizLayer.type}`;
-            layerActivationContainer.appendChild(title);
-
-            const canvasWrapper = document.createElement('div');
-            canvasWrapper.className = 'activation-maps-wrapper';
-            layerActivationContainer.appendChild(canvasWrapper);
-
-            activationPanelContainer.appendChild(layerActivationContainer);
-        }
-
-        const canvasWrapper = <HTMLElement>layerActivationContainer.querySelector('.activation-maps-wrapper');
-        if (!canvasWrapper) return;
-
-        if (actData.layerType === 'dense') {
-            drawHeatMap1D(canvasWrapper, actData, vizLayer.id, true)
-        } else if (actData.layerType === 'conv') {
-            drawActivations(canvasWrapper, actData, vizLayer.id, true)
-        } else if (actData.layerType === 'maxpool') {
-            drawActivations(canvasWrapper, actData, vizLayer.id, false)
-        } else if (actData.layerType === 'flatten') {
-            drawHeatMap1D(canvasWrapper, actData, vizLayer.id, false)
-        }
-    });
-
     const graphContainer = document.getElementById('graph-container')
     if (!graphContainer) return;
-    const layerData: LayerOutputData[] = activationData.map(item=> ({
-        Z: item.zSample,
-        A: item.aSample
-    }))
     renderNetworkGraph(graphContainer, layerData, model, sampleX)
 }

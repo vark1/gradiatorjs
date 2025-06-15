@@ -1,12 +1,7 @@
 import { Conv, Dense, Flatten, MaxPool2D, Module, Sequential } from "../nn/nn.js";
-import { VISActivationData } from "../types_and_interfaces/vis_interfaces.js";
 import { calculateMinMax } from "../utils/utils.js";
 import { Val } from "../Val/val.js";
-
-export interface LayerOutputData {
-    Z: Val | null;
-    A: Val | null;
-}
+import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
 
 function renderFeatureMap(canvas: HTMLCanvasElement, mapData: Float64Array, W: number, H: number) {
     const ctx = canvas.getContext('2d');
@@ -27,6 +22,75 @@ function renderFeatureMap(canvas: HTMLCanvasElement, mapData: Float64Array, W: n
         dataArr[p+3] = 255;
     }
     ctx.putImageData(imageData, 0, 0);
+}
+
+// fn to render single activation column (Z or A)
+function renderActivationCol(actVal: Val|null, label: string, container: HTMLElement, engineLayer: Module, filterPopup: HTMLElement|null): HTMLElement[] | null {
+    if (!actVal || !actVal.data) return null;
+    if (!filterPopup)   return null;
+
+    const col = document.createElement('div');
+    col.className = 'layer-column';
+    const currentLayerElements: HTMLElement[] = [];    // elements to draw lines TO
+    
+    const shape = actVal.shape;
+    const isSpatial = shape.length === 4;
+
+    if (isSpatial) {    // conv and maxpool
+        const [_, H, W, C] = shape;
+        for (let m=0; m<C; m++) {
+            const canv = document.createElement('canvas');
+            const mapSize = H*W;
+            const mapData = new Float64Array(mapSize);
+            for (let pix=0; pix<mapSize; pix++) {
+                mapData[pix] = actVal.data[pix*C + m];
+            }
+            renderFeatureMap(canv, mapData, W, H);
+            const maxDisplayDim = 48;
+            let displayW, displayH;
+            if (W >= H) {       // Wider or square
+                displayW = maxDisplayDim;
+                displayH = Math.round(maxDisplayDim * (H / W)) || 1;
+            } else {            // Taller
+                displayH = maxDisplayDim;
+                displayW = Math.round(maxDisplayDim * (W / H)) || 1;
+            }
+            canv.style.width = `${displayW}px`
+            canv.style.height = `${displayH}px`
+            canv.title = `Channel ${m + 1}/${C} (Size: ${W}x${H})`;
+
+            col.appendChild(canv);
+            currentLayerElements.push(canv);
+        }
+    } else {    // dense and flatten
+        const numNeurons = shape[1] || 1;
+        const canv = document.createElement('canvas');
+        renderFeatureMap(canv, actVal.data, 1, numNeurons);
+        
+        canv.style.width = '16px';
+        canv.style.height = '512px';
+        canv.title = `${numNeurons} neurons`;
+
+        col.appendChild(canv);
+        currentLayerElements.push(canv);
+    }
+
+    const layerLabel = document.createElement('div');
+    layerLabel.className = 'layer-label';
+    layerLabel.innerText = label;
+    col.appendChild(layerLabel);
+    container.appendChild(col);
+
+    // adding hover listener for conv layers
+    if (engineLayer instanceof Conv && filterPopup) {
+        col.addEventListener('mouseenter', ()=> {drawConvFilters(filterPopup, engineLayer); filterPopup.style.display = 'flex';});
+        col.addEventListener('mousemove', (e)=> {
+            filterPopup.style.left = `${e.pageX + 15}px`; 
+            filterPopup.style.top = `${e.pageY + 30}px`;});
+        col.addEventListener('mouseleave', ()=> {filterPopup.style.display = 'none';});
+    }
+
+    return currentLayerElements;
 }
 
 export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputData[], model: Sequential, sampleX: Val) {
@@ -59,72 +123,6 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
     actData.forEach((layerOutput, i) => {
         const engineLayer = model.layers[i];
 
-        // fn to render single activation column (Z or A)
-        const renderActivationCol = (actVal: Val| null, label: string): HTMLElement[] | null => {
-            if (!actVal || !actVal.data) return null;
-
-            const col = document.createElement('div');
-            col.className = 'layer-column';
-            const currentLayerElements: HTMLElement[] = [];    // elements to draw lines TO
-            
-            const shape = actVal.shape;
-            const isSpatial = shape.length === 4;
-
-            if (isSpatial) {    // conv and maxpool
-                const [_, H, W, C] = shape;
-                for (let m=0; m<C; m++) {
-                    const canv = document.createElement('canvas');
-                    const mapSize = H*W;
-                    const mapData = new Float64Array(mapSize);
-                    for (let pix=0; pix<mapSize; pix++) {
-                        mapData[pix] = actVal.data[pix*C + m];
-                    }
-                    renderFeatureMap(canv, mapData, W, H);
-                    const maxDisplayDim = 48;
-                    let displayW, displayH;
-                    if (W >= H) {       // Wider or square
-                        displayW = maxDisplayDim;
-                        displayH = Math.round(maxDisplayDim * (H / W)) || 1;
-                    } else {            // Taller
-                        displayH = maxDisplayDim;
-                        displayW = Math.round(maxDisplayDim * (W / H)) || 1;
-                    }
-                    canv.style.width = `${displayW}px`
-                    canv.style.height = `${displayH}px`
-                    canv.title = `Channel ${m + 1}/${C} (Size: ${W}x${H})`;
-
-                    col.appendChild(canv);
-                    currentLayerElements.push(canv);
-                }
-            } else {    // dense and flatten
-                const numNeurons = shape[1] || 1;
-                const canv = document.createElement('canvas');
-                renderFeatureMap(canv, actVal.data, 1, numNeurons);
-                
-                canv.style.width = '16px';
-                canv.style.height = '128px';
-                canv.title = `${numNeurons} neurons`;
-
-                col.appendChild(canv);
-                currentLayerElements.push(canv);
-            }
-
-            const layerLabel = document.createElement('div');
-            layerLabel.className = 'layer-label';
-            layerLabel.innerText = label;
-            col.appendChild(layerLabel);
-            container.appendChild(col);
-
-            // adding hover listener for conv layers
-            if (engineLayer instanceof Conv && filterPopup) {
-                col.addEventListener('mouseenter', ()=> {drawConvFilters(filterPopup, engineLayer); filterPopup.style.display = 'flex';});
-                col.addEventListener('mousemove', (e)=> {filterPopup.style.left = `${e.pageX + 15}px`; filterPopup.style.top = `${e.pageY + 15}px`;});
-                col.addEventListener('mouseleave', ()=> {filterPopup.style.display = 'none';});
-            }
-
-            return currentLayerElements;
-        };
-
         // Create labels for Z and A
         let zLabel = `${engineLayer.constructor.name.replace('Layer', '')}\n(Z)`;
         let aLabel = `${engineLayer.constructor.name.replace('Layer', '')}\n(A)`;
@@ -133,13 +131,13 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
         if (!(engineLayer instanceof Dense || engineLayer instanceof Conv) || !engineLayer.activation) aLabel = '';
 
         // Render Z (pre-activation) and A (post-activation) columns
-        const zElements = renderActivationCol(layerOutput.Z, zLabel);
+        const zElements = renderActivationCol(layerOutput.Z, zLabel, container, engineLayer, filterPopup);
         if(zElements) {
             drawConnectingLines(svg, prevLayerElements, zElements, engineLayer);
             prevLayerElements = zElements;
         }
 
-        const aElements = (layerOutput.A !== layerOutput.Z) ? renderActivationCol(layerOutput.A, aLabel) : null;
+        const aElements = (layerOutput.A !== layerOutput.Z) ? renderActivationCol(layerOutput.A, aLabel, container, engineLayer, filterPopup) : null;
             if(aElements) {
             prevLayerElements = aElements;  // No lines between Z and A, just update the source for next layer
         }
