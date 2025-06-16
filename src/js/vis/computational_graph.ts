@@ -118,6 +118,7 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
     container.appendChild(inputCol);
 
     let prevLayerElements: HTMLElement[] = [inputCanv]; // elements to draw lines FROM
+    let prevActVal: Val | null = sampleX;
 
     // render each layer's activations
     actData.forEach((layerOutput, i) => {
@@ -133,52 +134,102 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
         // Render Z (pre-activation) and A (post-activation) columns
         const zElements = renderActivationCol(layerOutput.Z, zLabel, container, engineLayer, filterPopup);
         if(zElements) {
-            drawConnectingLines(svg, prevLayerElements, zElements, engineLayer);
+            drawConnectingLines(svg, prevLayerElements, prevActVal, zElements, engineLayer);
             prevLayerElements = zElements;
+            prevActVal = layerOutput.Z;
         }
 
         const aElements = (layerOutput.A !== layerOutput.Z) ? renderActivationCol(layerOutput.A, aLabel, container, engineLayer, filterPopup) : null;
             if(aElements) {
             prevLayerElements = aElements;  // No lines between Z and A, just update the source for next layer
+            prevActVal = layerOutput.A;
         }
     });
 }
 
-function drawConnectingLines(svg: SVGSVGElement, fromElements: HTMLElement[], toElements: HTMLElement[], toLayer: Module): void {
+function drawConnectingLines(svg: SVGSVGElement, fromElements: HTMLElement[], fromActVal: Val|null, toElements: HTMLElement[], toLayer: Module): void {
+    if (!fromActVal)    return;
     const containerRect = svg.parentElement!.getBoundingClientRect();
 
-    let avgWeightMag = 0.1;
-    if (toLayer instanceof Dense && toLayer.W) {
+    if (toLayer instanceof Dense && toElements.length === 1) {
+        const nin = toLayer.nin;
+        const nout = toLayer.nout;
         const weights = toLayer.W.data;
-        let sumMag = 0;
-        for(const w of weights) {
-            sumMag+=Math.abs(w);
+
+        let maxAbsWeight = 0;
+        for (const w of weights) {
+            const absW = Math.abs(w);
+            if (absW > maxAbsWeight) maxAbsWeight = absW;
         }
-        avgWeightMag = sumMag/weights.length;
-    }
+        if (maxAbsWeight === 0) maxAbsWeight = 1;
 
-    const maxLines = 50;
-    let linesDrawn = 0;
+        const toEl = toElements[0];
+        const toRect = toEl.getBoundingClientRect();
+        const toX = toRect.left - containerRect.left;
 
-    for (const toEl of toElements) {
-        for (const fromEl of fromElements) {
-            if (linesDrawn >= maxLines) break;
+        const fromShape = fromActVal.shape;
+        const isFromSpatial = fromShape.length === 4;
 
-            const fromRect = fromEl.getBoundingClientRect();
-            const toRect = toEl.getBoundingClientRect();
+        const maxLinesToDraw = 150;
+        for (let i=0; i<maxLinesToDraw; i++) {
+            const in_neuron_idx = Math.floor(Math.random()*nin);
+            const out_neuron_idx = Math.floor(Math.random()*nout);
 
+            const toY = (toRect.top - containerRect.top) + (toRect.height*(out_neuron_idx+0.5)/nout);
+
+            let fromX: number;
+            let fromY: number;
+
+            if (isFromSpatial) {
+                const [_, H, W, C] = fromShape;
+                const mapSize = H*W;
+                const c_idx = Math.floor(in_neuron_idx/mapSize);
+                const pixel_in_map = in_neuron_idx%mapSize;
+                const h_idx = Math.floor(pixel_in_map/W);
+
+                const fromEl = fromElements[c_idx];
+                if (!fromEl) continue;
+                const fromRect = fromEl.getBoundingClientRect();
+                fromX = fromRect.right - containerRect.left;
+                fromY = (fromRect.top-containerRect.top) + (fromRect.height*(h_idx+0.5)/H);
+            } else {
+                const fromEl = fromElements[0];
+                const fromRect = fromEl.getBoundingClientRect();
+                fromX = fromRect.right - containerRect.left;
+                fromY = (fromRect.top - containerRect.top) + (fromRect.height*(in_neuron_idx+0.5)/nin);
+            }
+
+            // flat index is in_neuron_idx * nout + out_neuron_idx for weight [nin, nout]
+            const weight_idx = in_neuron_idx*nout + out_neuron_idx;
+            const weight = weights[weight_idx];
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', (fromRect.right - containerRect.left).toString());
-            line.setAttribute('y1', (fromRect.top + fromRect.height/2 - containerRect.top).toString());
-            line.setAttribute('x2', (toRect.left - containerRect.left).toString());
-            line.setAttribute('y2', (toRect.top + toRect.height/2 - containerRect.top).toString());
+            line.setAttribute('x1', fromX.toString());
+            line.setAttribute('y1', fromY.toString());
+            line.setAttribute('x2', toX.toString());
+            line.setAttribute('y2', toY.toString());
 
-            const thickness = (toLayer instanceof Dense) ? Math.min(3, 0.1 + avgWeightMag * 20) : 0.5;
+            const weightMagNorm = Math.abs(weight)/maxAbsWeight;
+            const opacity = Math.min(0.7, weightMagNorm*1.5);
+            const thickness = Math.min(2.5, 0.1+weightMagNorm*4);
+            line.setAttribute('stroke', weight>0?'rgba(0, 100, 255, 0.6)': 'rgba(255, 50, 0, 0.6)');
+            line.setAttribute('stroke-opacity', opacity.toString());
             line.setAttribute('stroke-width', thickness.toString());
             svg.appendChild(line);
-            linesDrawn++;
         }
-        if (linesDrawn >= maxLines) break;
+    } else {        // for conv/pool
+        toElements.slice(0, 50).forEach(toEl=> {
+            fromElements.slice(0, 50).forEach(fromEl => {
+                const fromRect = fromEl.getBoundingClientRect();
+                const toRect = toEl.getBoundingClientRect();
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', (fromRect.right - containerRect.left).toString());
+                line.setAttribute('y1', (fromRect.top + fromRect.height/2 - containerRect.top).toString());
+                line.setAttribute('x2', (toRect.left - containerRect.left).toString());
+                line.setAttribute('y2', (toRect.top + toRect.height/2 - containerRect.top).toString());
+                line.setAttribute('stroke-width', '0.5');
+                svg.appendChild(line);
+            });
+        });
     }
 }
 
