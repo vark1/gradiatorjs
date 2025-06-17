@@ -155,16 +155,12 @@ export async function prepareMNISTData() {
         const numClasses = 10 // 10 for one-hot encoding, use 1 if you just want the digit itself
         const yTrain = new Val([data.labels.length, numClasses])
         
-        if (numClasses === 10) {
-            const oneHotLabels = new Float64Array(data.labels.length * numClasses)
-            for (let i=0; i<data.labels.length; i++) {
-                const label = data.labels[i];
-                oneHotLabels[i * numClasses + label] = 1.0;
-            }
-            yTrain.data = oneHotLabels;
+        const oneHotLabels = new Float64Array(data.labels.length * numClasses).fill(0)
+        for (let i=0; i<data.labels.length; i++) {
+            const label = data.labels[i];
+            oneHotLabels[i * numClasses + label] = 1.0;
         }
-
-        yTrain.data = new Float64Array(data.labels); 
+        yTrain.data = oneHotLabels;
 
         return [xTrain, yTrain];
     } catch (e){

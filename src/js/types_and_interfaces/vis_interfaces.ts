@@ -34,3 +34,9 @@ export interface LayerOutputData {
     Z: Val | null;
     A: Val | null;
 }
+
+export interface visPackage {
+    sampleX: Val;
+    sampleY_label: number;
+    layerOutputs: { Z: Val | null; A: Val | null; }[];
+}

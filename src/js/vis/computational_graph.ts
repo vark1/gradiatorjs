@@ -93,7 +93,7 @@ function renderActivationCol(actVal: Val|null, label: string, container: HTMLEle
     return currentLayerElements;
 }
 
-export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputData[], model: Sequential, sampleX: Val) {
+export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputData[], model: Sequential, sampleX: Val, sampleY_label: number) {
     container.innerHTML = '';
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.id = 'graph-svg';
@@ -111,8 +111,20 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
     inputCanv.style.width = '64px';
     inputCanv.style.height = '64px';
     const inputLabel = document.createElement('div');
+
+    const labelDisplayDiv = document.createElement('div');
+    labelDisplayDiv.className = 'label-display';
+    const trueLabelDiv = document.createElement('div');
+    trueLabelDiv.innerHTML = `True Label: <span>${sampleY_label}</span>`;
+    const predLabelDiv = document.createElement('div');
+    predLabelDiv.innerHTML = `Predicted: <span>-</span>`;
+    labelDisplayDiv.appendChild(trueLabelDiv);
+    labelDisplayDiv.appendChild(predLabelDiv);
+
     inputLabel.className = 'layer-label';
     inputLabel.innerText = `Input Image\n${H_in}x${W_in}x${C_in}`;
+
+    inputCol.appendChild(labelDisplayDiv);
     inputCol.appendChild(inputCanv);
     inputCol.appendChild(inputLabel);
     container.appendChild(inputCol);
@@ -145,6 +157,29 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
             prevActVal = layerOutput.A;
         }
     });
+
+    const finalAct = actData[actData.length-1]?.A;
+    if (!finalAct || !finalAct.data) return;
+    
+    const prob = finalAct.data;
+    let maxProb=-1;
+    let predictedLabel=-1;
+    for (let j=0; j<prob.length; j++) {
+        if (prob[j]>maxProb) {
+            maxProb=prob[j];
+            predictedLabel=j;
+        }
+    }
+    const predSpan = predLabelDiv.querySelector('span');
+    if (!predSpan) return;
+    predSpan.textContent = predictedLabel.toString();
+    if (predictedLabel === sampleY_label) {
+        predSpan.style.color = '#28a745'; // Green
+        predSpan.style.fontWeight = 'bold';
+    } else {
+        predSpan.style.color = '#dc3545'; // Red
+        predSpan.style.fontWeight = 'bold';
+    }
 }
 
 function drawConnectingLines(svg: SVGSVGElement, fromElements: HTMLElement[], fromActVal: Val|null, toElements: HTMLElement[], toLayer: Module): void {

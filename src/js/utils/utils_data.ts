@@ -7,7 +7,6 @@ export function imgToVector(img: HTMLCanvasElement) {
     if(!ctx)    return;
     ctx.drawImage(img, 0, 0);
     var img_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    var p = img_data.data; // A flat array of RGBA values
     return Float64Array.from(img_data.data);
 }
 

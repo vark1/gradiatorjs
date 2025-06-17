@@ -2,7 +2,7 @@ import { Val } from "../Val/val.js";
 import { Sequential, Dense, Conv, MaxPool2D, Flatten } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
-import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
+import { LayerOutputData, visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
 
 function yieldToBrowser(): Promise<void> {
@@ -58,7 +58,7 @@ export async function trainModel(
         loss: number, 
         accuracy: number, 
     ) => void,
-    updateActivationVis: (actvisdata: LayerOutputData[], model: Sequential, sampleX: Val)=> void
+    updateActivationVis: (model: Sequential, visdata: visPackage)=> void
 ) : Promise<void> {
 
     console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
@@ -112,25 +112,28 @@ export async function trainModel(
                 }
 
                 if (batch_idx % vis_freq === 0) {
-                    let activationVisData: LayerOutputData[] = [];
-
                     assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
-                    const sampleX_for_vis = new Val(X_batch.shape.slice(1)).reshape([1, ...X_batch.shape.slice(1)])
-                    sampleX_for_vis.data = X_batch.data.slice(0, X_batch.size / X_batch.shape[0]);
 
-                    const layerOutputs = model.getLayerOutputs(sampleX_for_vis);
+                    const sampleX = new Val(batch.x.shape.slice(1)).reshape([1, ...batch.x.shape.slice(1)]);
+                    sampleX.data = batch.x.data.slice(0, batch.x.size / batch.x.shape[0]);
 
-                    activationVisData = model.layers.map((engineLayer, layerModelIdx) => {
-                        const output = layerOutputs[layerModelIdx];
-                        let zVal: Val | null = output.Z;
-                        let aVal: Val | null = output.A;
+                    let sampleY_label = -1;
+                    const y_features = batch.y.size / batch.y.shape[0];
+                    if (y_features === 1) { // If label is a single number
+                        sampleY_label = batch.y.data[0];
+                    } else { // If label is one-hot encoded
+                        const y_sample_data = batch.y.data.slice(0, y_features);
+                        sampleY_label = y_sample_data.indexOf(1);
+                    }
 
-                        return {
-                            Z: zVal ? zVal : null,
-                            A: aVal ? aVal : null,
-                        }
-                    })
-                    updateActivationVis(activationVisData, model, sampleX_for_vis);
+                    const layerOutputs = model.getLayerOutputs(sampleX);
+
+                    const visData = {
+                        sampleX: sampleX,
+                        sampleY_label: sampleY_label,
+                        layerOutputs: layerOutputs
+                    };
+                    updateActivationVis(model, visData);
                 }
                 batch_idx++;
                 await yieldToBrowser();

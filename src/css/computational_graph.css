@@ -66,3 +66,20 @@ body {
     border: 1px solid #ddd;
     image-rendering: pixelated;
 }
+
+.label-display {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+    background-color: #f8f9fa;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+.label-display span {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 0 5px;
+}

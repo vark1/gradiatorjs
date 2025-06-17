@@ -5,7 +5,7 @@ import { trainModel } from "../nn/train.js";
 import { crossEntropyLoss } from "../utils/utils_num.js";
 import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
 import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
-import { SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
+import { SerializableNNLayer, LayerCreationOptions, visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { renderNetworkGraph } from "./computational_graph.js";
 import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
 import { Sequential } from "nn/nn.js";
@@ -453,15 +453,16 @@ function updateTrainingStatusUI(epoch: number, batch_idx: number, loss: number, 
     Batch ${batch_idx}: \n
     Loss=${loss.toFixed(4)}, 
     Acc=${accuracy.toFixed(2)}%, 
-    Time per example=${(iterTime/1000).toFixed(4)}s`
+    Time per batch=${(iterTime/1000).toFixed(4)}s`
 }
 
-function updateActivationVis(layerData: LayerOutputData[], model: Sequential, sampleX: Val) {
-    if (!layerData)            { console.error('activation data not found'); return; }
+function updateActivationVis(model: Sequential, visData: visPackage) {
     if (!VISUALIZER)                { console.error('Visualizer not found'); return; }
     if (!activationPanelContainer)  { console.error('Activation panel container not found'); return; }
 
     const graphContainer = document.getElementById('graph-container')
     if (!graphContainer) return;
-    renderNetworkGraph(graphContainer, layerData, model, sampleX)
+
+    const { sampleX, sampleY_label, layerOutputs } = visData;
+    renderNetworkGraph(graphContainer, layerOutputs, model, sampleX, sampleY_label)
 }
