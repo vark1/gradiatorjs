@@ -1,8 +1,8 @@
 import { Val } from "../Val/val.js";
-import { Sequential, Dense, Conv, MaxPool2D, Flatten } from "./nn.js";
+import { Sequential } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
 import { calcAccuracy } from "../utils/utils_train.js";
-import { LayerOutputData, visPackage } from "../types_and_interfaces/vis_interfaces.js";
+import { visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
 
 function yieldToBrowser(): Promise<void> {

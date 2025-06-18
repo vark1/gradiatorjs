@@ -6,24 +6,26 @@
     <title>NN Visualizer</title>
     <link rel="stylesheet" href="../../css/vis.css">
     <link rel="stylesheet" href="../../css/computational_graph.css">
-    <script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.14/dist/browser/hdf5.js"></script>
     <script type="module" src="/dist/src/js/vis/vis.js"></script>
     <script type="module" src="/dist/src/js/vis/computational_graph.js"></script>
     <script type="module" src="/dist/src/js/vis/integration.js"></script>
     <script type="module" src="/dist/src/js/utils/utils_data.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.14/dist/browser/hdf5.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>   <!--To decompress gzip-->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 </head>
 <body>
 
     <div class="persistence-controls">
-        <button id="save-network-btn">Save Network</button>
-        <button id="load-network-btn">Load Saved Network</button>
-        <button id="clear-network-btn">Clear Saved Network</button>
+        <button id="clear-network">Clear Network</button>
+        <button id="save-network">Save Network</button>
+        <button id="load-network">Load Saved Network</button>
+        <button id="clear-saved-network">Clear Saved Network</button>
     </div>
     <div id="persistence-status"></div>
 
-    <div id="toolbar">
+    <div id="layer-buttons">
         <button id="add-dense">+dense</button>
         <button id="add-conv">+conv</button>
         <button id="add-flatten">+flatten</button>
@@ -124,11 +126,6 @@
 
     <button id="run-model-btn">Run Model</button>
     <div id="training-status"></div>
-
-    <div>
-        <h2>Real-time Layer Activations</h2>
-        <div id="activation-details-panel"></div>
-    </div>
 
     <h1>Network Graph Visualization</h1>
     <div id="graph-container"></div>
