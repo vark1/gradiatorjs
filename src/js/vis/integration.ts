@@ -1,9 +1,9 @@
 import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/nn.js';
 import * as afn from '../Val/activations.js';
-import { NeuralNetworkVisualizer } from './vis.js';
 import { NNLayer } from '../types_and_interfaces/general.js';
 import { Val } from '../Val/val.js';
 import { assert } from '../utils/utils.js';
+import { NeuralNetworkVisualizer } from './neuralNetworkVisualizer.js';
 
 const AFN_MAP = {
     "relu": afn.relu,
@@ -15,7 +15,7 @@ const AFN_MAP = {
 export function createEngineModelFromVisualizer(
     visualizer: NeuralNetworkVisualizer,
     input: Val
-): Sequential {
+): [Sequential, boolean] {
 
     const errors = visualizer.validateNetwork();
     assert (errors.length === 0, ()=> `Invalid network configuration: ${errors.join(', ')}`)
@@ -30,6 +30,7 @@ export function createEngineModelFromVisualizer(
     let isFlattened = false;
 
     let activationFn;
+    let multiclass = false;
 
     assert(vizLayers[0].type !== 'dense', ()=>`The first layer cannot be 'Dense'. Flatten the data first.`)
 
@@ -70,6 +71,11 @@ export function createEngineModelFromVisualizer(
                 currentW = undefined;
                 currentH = undefined;
                 isFlattened = true;
+
+                if (i === vizLayers.length-1 && v.activation === 'softmax') {
+                    multiclass = true;
+                }
+
                 break;
 
             case 'conv':
@@ -130,5 +136,5 @@ export function createEngineModelFromVisualizer(
     assert(engineLayers.length!==0, ()=> "No computational engine layers could be created from the visualizer configuration.")
 
     const model = new Sequential(...engineLayers);
-    return model;
+    return [model, multiclass];
 }

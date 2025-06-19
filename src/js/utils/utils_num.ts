@@ -12,7 +12,7 @@ export function meanSquaredErrorLoss(y_pred: Val, y_true: Val): Val {
     return op.div(op.sum(op.pow(op.sub(y_pred, y_true), 2)), y_true.size);
 }
 
-export function crossEntropyLoss(y_pred: Val, y_true: Val, e: number = 1e-9): Val {
+export function crossEntropyLoss_binary(y_pred: Val, y_true: Val, e: number = 1e-9): Val {
     if (y_pred.shape.join(',') !== y_true.shape.join(',')) {
         throw new Error(`Shape mismatch for BCE Loss: pred ${y_pred.shape}, true ${y_true.shape}`);
     }
@@ -29,4 +29,15 @@ export function crossEntropyLoss(y_pred: Val, y_true: Val, e: number = 1e-9): Va
     if (batch_size === 0) return new Val([], 0);
     let avg_loss = op.mul(-1/batch_size, total_sum)
     return avg_loss;
+}
+
+export function crossEntropyLoss_categorical(y_pred: Val, y_true: Val): Val {
+    if (y_pred.shape.join(',') !== y_true.shape.join(',')) {
+        throw new Error(`Shape mismatch for Cross-Entropy Loss. Pred: [${y_pred.shape}], True: [${y_true.shape}]`);
+    }
+    const epsilon = 1e-9;
+    const log_pred = op.log(op.add(y_pred, epsilon));
+    const product = op.mul(y_true, log_pred);
+    const negatedSum = op.mul(op.sum(product,1), -1);
+    return op.mean(negatedSum);
 }

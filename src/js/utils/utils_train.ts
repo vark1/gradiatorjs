@@ -1,6 +1,6 @@
 import { Val } from "../Val/val.js";
 
-export function calcAccuracy(
+export function calcBinaryAccuracy(
     y_pred_val: Val,
     y_true_val: Val,
     threshold: number = 0.5
@@ -31,5 +31,57 @@ export function calcAccuracy(
     }
 
     const accuracy = (correct_predictions / n_samples) * 100;
+    return accuracy;
+}
+
+export function calcMultiClassAccuracy(
+    y_pred_val: Val,
+    y_true_val: Val,
+) {
+    if (y_pred_val.dim !== 2 || y_true_val.dim !== 2 || y_pred_val.shape[0] !== y_true_val.shape[0] || y_pred_val.shape[1] !== y_true_val.shape[1]) {
+        throw new Error(`Shape mismatch for multi-class accuracy. Pred: [${y_pred_val.shape.join(',')}], True: [${y_true_val.shape.join(',')}]`);
+    }
+    
+    const batchSize = y_pred_val.shape[0];
+    const numClasses = y_pred_val.shape[1];
+
+    if (batchSize === 0) {
+        console.log("Empty input");
+        return 100.0;
+    }
+    const y_pred: Float64Array = y_pred_val.data;
+    const y_true: Float64Array = y_true_val.data;
+
+    let correct_predictions = 0;
+
+    for (let i=0; i<batchSize; i++) {
+        const predOffset = i*numClasses;
+        const trueOffset = i*numClasses;
+
+        let maxProb = -1;
+        let predicted_class = -1;
+        
+        // argmax
+        for (let j=0; j<numClasses; j++) {
+            if (y_pred[predOffset+j]>maxProb) {
+                maxProb = y_pred[predOffset+j];
+                predicted_class = j;
+            }
+        }
+
+        let trueClass = -1;
+        for (let j=0; j<numClasses; j++) {      // finding true class from one-hot vect
+            if (y_true[trueOffset+j] === 1.0) {
+                trueClass = j;
+                break;
+            }
+        }
+        
+        if (predicted_class === trueClass) {
+            correct_predictions++;
+        }
+    }
+
+    const accuracy = (correct_predictions / batchSize) * 100;
     return accuracy;
 }

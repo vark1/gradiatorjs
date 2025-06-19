@@ -1,7 +1,7 @@
 import { Val } from "../Val/val.js";
 import { Sequential } from "./nn.js";
 import { getStopTraining, endTraining } from "./training_controller.js";
-import { calcAccuracy } from "../utils/utils_train.js";
+import { calcBinaryAccuracy, calcMultiClassAccuracy } from "../utils/utils_train.js";
 import { visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
 
@@ -51,6 +51,7 @@ export async function trainModel(
     batch_size: number,
     update_ui_freq: number = 10,
     vis_freq: number = 50,
+    multiClass: boolean,
     updateUICallback: (
         epoch: number,
         batch_idx: number,
@@ -107,7 +108,14 @@ export async function trainModel(
                 iteration++;
 
                 if (batch_idx % update_ui_freq === 0) {
-                    const accuracy = calcAccuracy(Y_pred, Y_batch);
+                    console.log("Y_pred", Y_pred)
+                    console.log("Y_batch", Y_batch)
+                    let accuracy = 100;
+                    if (multiClass) {
+                        accuracy = calcMultiClassAccuracy(Y_pred, Y_batch);
+                    } else {
+                        accuracy = calcBinaryAccuracy(Y_pred, Y_batch);
+                    }
                     updateUICallback(e, batch_idx, loss.data[0], accuracy, iterTime);
                 }
 
