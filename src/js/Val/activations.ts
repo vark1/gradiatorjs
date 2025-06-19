@@ -44,6 +44,8 @@ export function softmax (Z: Val): Val {
 
     assert(Z.dim === 2, () => `Softmax: input must be 2D ([Batch, Classes]). Got ${Z.dim}D.`);
 
+    return Z;   // returning this rn because we now have a softmax+crossentropy mix function so softmax by itself is not needed
+
     let out = new Val(Z.shape);
     const batchsize = Z.shape[0]
     const classes = Z.shape[1]

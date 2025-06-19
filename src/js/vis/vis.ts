@@ -58,7 +58,7 @@ async function handleRunClick() {
     
     let lossfn = numUtil.crossEntropyLoss_binary;
     if (multiClass) {
-        lossfn = numUtil.crossEntropyLoss_categorical
+        lossfn = numUtil.crossEntropyLoss_softmax;
     }
 
     startTraining();
