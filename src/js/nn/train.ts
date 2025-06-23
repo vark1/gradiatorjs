@@ -108,8 +108,6 @@ export async function trainModel(
                 iteration++;
 
                 if (batch_idx % update_ui_freq === 0) {
-                    console.log("Y_pred", Y_pred)
-                    console.log("Y_batch", Y_batch)
                     let accuracy = 100;
                     if (multiClass) {
                         accuracy = calcMultiClassAccuracy(Y_pred, Y_batch);

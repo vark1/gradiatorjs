@@ -6,9 +6,10 @@
 }
 
 #network-container {
+    position: relative;
     display: flex;
-    align-items: center; 
-    gap: 10px;
+    align-items: center;
+    gap: 15px;
     padding: 20px;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -55,26 +56,35 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.layer:not(:first-child) {
-    margin-left: .75em;
-}
-  
-.layer:not(:first-child):before {
-    content: '\21E2';
-    color: black;
-    position: absolute;
-    top: 50%;
-    left: 0;
-    transform: translate(-100%, -50%);
-    z-index: 1;
-}
-
 .layer.selected {
     border-color: #FFD700; /* Gold border for selected */
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
 }
 
 /* -----------------------LAYER end-----------------------*/
+
+/* -----------------------LAYER ARROWS start-----------------------*/
+
+.layer-connector {
+    flex-grow: 1;
+    height: 2px;
+    background-color: #555;
+    position: relative;
+}
+
+.layer-connector::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid #555;
+    border-right: 2px solid #555;
+}
+
+/* -----------------------LAYER ARROWS end-----------------------*/
 
 #layer-buttons {
     top: 20px;

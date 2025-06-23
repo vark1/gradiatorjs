@@ -99,14 +99,14 @@ export class NeuralNetworkVisualizer {
 
     private loadNetworkFromLocalStorage(): void {
         const statusDiv = document.getElementById('persistence-status');
+        
+        const jsonString = localStorage.getItem(this.STORAGE_KEY);
+        if (!jsonString) {
+            console.log("No saved network found in localStorage.");
+            if (statusDiv) statusDiv.textContent = 'No saved network found.';
+            return;
+        }
         try {
-            const jsonString = localStorage.getItem(this.STORAGE_KEY);
-            if (!jsonString) {
-                console.log("No saved network found in localStorage.");
-                if (statusDiv) statusDiv.textContent = 'No saved network found.';
-                return;
-            }
-
             const savedConfig: SerializableNNLayer[] = JSON.parse(jsonString);
             if (!Array.isArray(savedConfig)) {
                 throw new Error("Saved data is not a valid network configuration.");
@@ -172,49 +172,32 @@ export class NeuralNetworkVisualizer {
 
         switch(options.type) {
             case 'dense':
-                newLayer = {
-                    id,
-                    type: options.type, 
-                    neurons: options.neurons, 
-                    activation: options.activation, 
-                    element: null as any
-                };
+                newLayer = { id, type: options.type, neurons: options.neurons, activation: options.activation, element: null as any};
                 break;
             case 'conv':
-                newLayer = {
-                    id, 
-                    type: options.type, 
-                    out_channels: options.out_channels, 
-                    kernel_size: options.kernel_size, 
-                    stride: options.stride, 
-                    padding: options.padding, 
-                    activation: options.activation, 
-                    element: null as any
-                };
+                newLayer = { id, type: options.type, out_channels: options.out_channels, kernel_size: options.kernel_size, stride: options.stride, padding: options.padding, activation: options.activation, element: null as any };
                 break;
             case 'flatten':
-                newLayer = {
-                    id,
-                    type: options.type,
-                    element: null as any
-                }
+                newLayer = { id, type: options.type, element: null as any };
                 break;
             case "maxpool":
-                newLayer = {
-                    id,
-                    type: options.type,
-                    pool_size: options.pool_size,
-                    stride: options.stride, 
-                    element: null as any,
-                }
+                newLayer = { id, type: options.type, pool_size: options.pool_size, stride: options.stride, element: null as any, };
                 break;
             default:
                 console.error("Unknown layer type for options:", options);
                 return;
         }
 
+        if (this.container.children.length > 0) {
+            const arrow = document.createElement('div');
+            arrow.className = 'layer-connector';
+            arrow.dataset.arrowFor = id;
+            this.container.appendChild(arrow);
+        }
         const layer_element = this.createLayerElement(newLayer)
         newLayer.element = layer_element;
+
+        this.container.appendChild(layer_element);
 
         this.layers.push(newLayer)
         this.container.appendChild(layer_element);
@@ -234,6 +217,12 @@ export class NeuralNetworkVisualizer {
         if (layer_index === -1) return; //layer not found
 
         const layer_element = this.layers[layer_index].element;
+
+        const precedingElement = layer_element.previousElementSibling;
+        if (precedingElement && precedingElement.classList.contains('layer-connector')) {
+            this.container.removeChild(precedingElement);
+        }
+
         this.container.removeChild(layer_element);
 
         this.layers.splice(layer_index, 1);
