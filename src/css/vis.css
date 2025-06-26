@@ -1,6 +1,25 @@
+:root {
+    --width: 800px;
+    --font-main: Verdana, sans-serif;
+    --font-secondary: Verdana, sans-serif;
+    --font-scale: 1em;
+    --background-color: #fff;
+    --text-color: #444;
+}
+
+body {
+    font-family: var(--font-secondary);
+    font-size: var(--font-scale);
+    max-width: var(--width);
+    text-align: left;
+    line-height: 1.3;
+    color: var(--text-color);
+    margin: auto;
+    padding: 20px;
+}
+
 .viewport {
     position: relative;
-    /* height: 600px; */
     border: 1px solid #ccc;
     text-align: center;
 }
@@ -10,7 +29,7 @@
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 20px;
+    padding: 10px;
     border: 1px solid #ccc;
     border-radius: 8px;
     min-height: 150px; 
@@ -26,12 +45,8 @@
     display: block;
 }
 
-.common-config {
-    display: none;
-}
-
-.common-config.show {
-    display: block;
+input {
+    width: 100px;
 }
 
 /* -----------------------LAYER start-----------------------*/
@@ -86,13 +101,6 @@
 
 /* -----------------------LAYER ARROWS end-----------------------*/
 
-#layer-buttons {
-    top: 20px;
-    left: 20px;
-    background: white;
-    padding: 10px;
-    border: 1px solid #ccc;
-}
 
 #delete-selected-layer {
     background: #ff4444;
@@ -108,42 +116,33 @@
     width: 50px;
 }
 
+.layer.selected {
+    border: 2px solid #000;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+}
+
+.layer-info {
+    margin-bottom: 15px;
+}
+
+.layer-info p {
+    margin: 5px 0;
+}
+
 /* -----------------------Config panel start-----------------------*/
 
 .config-panel {
-    top: 20px;
-    right: 20px;
+    width: 300px;
     background: white;
     border: 1px solid #ccc;
     padding: 20px;
-    width: 250px;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.config-panel h3 {
-    margin-top: 0;
 }
 
 .config-panel .placeholder {
     text-align: center;
     color: #666;
     font-style: italic;
-}
-
-.config-panel .form-group {
-    margin-bottom: 15px;
-}
-
-.config-panel .form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.config-panel .form-group input,
-.config-panel .form-group select {
-    width: 100%;
-    padding: 5px;
-    box-sizing: border-box;
 }
 
 .config-panel button {
@@ -163,20 +162,23 @@
     background: #cc0000;
 }
 
-.layer.selected {
-    border: 2px dotted #000;
-    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+/* -----------------------Config panel END----------------------- */
+
+/* -----------------------Layer options START----------------------- */
+
+.network-options {
+    display: inline-block;
 }
 
-.layer-info {
-    margin-bottom: 15px;
+/* -----------------------Layer options end----------------------- */
+
+/* -----------------------Chart START----------------------- */
+
+.graph-section-container {
+    display: inline-block;
 }
 
-.layer-info p {
-    margin: 5px 0;
-}
-
-/* -----------------------Config panel end-----------------------*/
+/* -----------------------Chart END----------------------- */
 
 .chart-container {
     width: 800px;

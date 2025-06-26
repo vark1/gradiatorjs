@@ -1,9 +1,4 @@
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f0f2f5;
-    color: #333;
-    padding: 20px;
-}
+
 #graph-container {
     position: relative;
     display: flex;
@@ -57,7 +52,6 @@ body {
     border-radius: 6px;
     z-index: 100;
     pointer-events: none;
-    display: flex;
     flex-wrap: wrap;
     gap: 4px;
     max-width: 300px;
