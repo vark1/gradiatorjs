@@ -3,11 +3,56 @@ import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset, prepa
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
 import * as numUtil from "../utils/utils_num.js";
-import { endTraining, getIsTraining, getStopTraining,requestStopTraining, startTraining } from "../nn/training_controller.js";
+import { setTrainingState, getIsPaused, getIsTraining } from "../nn/state_management.js";
 import { renderNetworkGraph } from "./computational_graph.js";
 import { Sequential } from "../nn/nn.js";
 import { NeuralNetworkVisualizer } from "./neuralNetworkVisualizer.js";
 import { LossGraph } from "./loss_graph.js";
+import { NetworkParams } from "types_and_interfaces/general.js";
+
+const mainActionBtn = <HTMLButtonElement>document.getElementById('main-action-btn');
+const stopBtn = <HTMLButtonElement>document.getElementById('stop-btn');
+const statusElement = <HTMLElement>document.getElementById('training-status');
+
+function updateBtnStates() {
+    if (!mainActionBtn || !stopBtn) return;
+
+    if (!getIsTraining()) {
+        mainActionBtn.textContent = 'Start Training';
+        mainActionBtn.style.backgroundColor = 'var(--accent-green)';
+        stopBtn.style.display = 'none';
+    } else {
+        stopBtn.style.display = 'block';
+        if (getIsPaused()) {
+            mainActionBtn.textContent = 'Resume';
+            mainActionBtn.style.backgroundColor = 'var(--accent-blue)';
+        } else {
+            mainActionBtn.textContent = 'Pause';
+            mainActionBtn.style.backgroundColor = 'var(--accent-yellow)';
+        }
+    }
+}
+
+mainActionBtn?.addEventListener('click', handleMainActionClick);
+stopBtn?.addEventListener('click', handleStopClick);
+
+function handleMainActionClick() {
+    if (!getIsTraining()) {
+        handleTraining();
+    } else if (getIsPaused()) {
+        setTrainingState('TRAINING');
+    } else {
+        setTrainingState('PAUSED');
+        updateBtnStates();
+    }
+}
+
+function handleStopClick() {
+    console.log("Stop button clicked: Requesting stop");
+    setTrainingState('STOPPING');
+    statusElement.textContent = 'Stopping...';
+    return;
+}
 
 let VISUALIZER: NeuralNetworkVisualizer;
 let lossGraph: LossGraph;
@@ -17,37 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
     lossGraph = new LossGraph('loss-accuracy-chart');
 })
 
-const runStopButton = document.getElementById('run-model-btn') as HTMLButtonElement;
-if (!runStopButton) {
-    console.error("Run/Stop button not found");
-    requestStopTraining();
-}
-runStopButton.addEventListener('click', handleRunClick);
+async function handleTraining() {
 
-const statusElement = document.getElementById('training-status') as HTMLElement;
-if (!statusElement) {
-    console.error("Training Status Element not found");
-    requestStopTraining();
-}
+    setTrainingState('TRAINING');
+    updateBtnStates();
 
-async function handleRunClick() {
-    if (getIsTraining()) {
-        console.log("Stop button clicked: Requesting stop")
-        requestStopTraining();
-        statusElement.textContent = 'Stopping...';
-        return;
-    }
-
-    if (getStopTraining()) { runStopButton.textContent = 'Run Model'; return; }
     // if (!(DATASET_HDF5_TEST && DATASET_HDF5_TRAIN)) { console.error("Datasets not found. Please select a trainset and a testset"); return; }
     if (!VISUALIZER) { console.error("Visulizer has not yet loaded for it to run the model."); return; }
     if (lossGraph) lossGraph.reset();
-    
-    const LEARNING_RATE = parseFloat((<HTMLInputElement>document.getElementById('learning-rate')).value) || 0.01;
-    const EPOCH = parseInt((<HTMLInputElement>document.getElementById('epoch')).value) || 500;
-    const BATCH_SIZE = parseInt((<HTMLInputElement>document.getElementById('batch-size')).value) || 100;
-    const UPDATEUI_FREQ = 10;
-    const VIS_FREQ = 50;
     
     const [mnist_x_train, mnist_y_train] = await prepareMNISTData();
     // const catvnoncat_data = catvnoncat_prepareDataset();
@@ -56,41 +78,27 @@ async function handleRunClick() {
     const Y_train = mnist_y_train// catvnoncat_data['train_y'];
     const [model, multiClass] = createEngineModelFromVisualizer(VISUALIZER, X_train);
     
-    let lossfn = numUtil.crossEntropyLoss_binary;
-    if (multiClass) {
-        lossfn = numUtil.crossEntropyLoss_softmax;
+    let lossfn = multiClass? numUtil.crossEntropyLoss_softmax: numUtil.crossEntropyLoss_binary;
+    const params: NetworkParams = {
+        loss_fn: lossfn,
+        l_rate: parseFloat((<HTMLInputElement>document.getElementById('learning-rate')).value) || 0.01,
+        epochs: parseInt((<HTMLInputElement>document.getElementById('epoch')).value) || 500,
+        batch_size: parseInt((<HTMLInputElement>document.getElementById('batch-size')).value) || 100,
+        update_ui_freq: 10,
+        vis_freq: 50,
+        multiClass: multiClass
     }
 
-    startTraining();
-    runStopButton.textContent = 'Stop training';
-    statusElement.textContent = 'Preparing...';
     try {
-        await trainModel(
-            model, 
-            X_train, 
-            Y_train, 
-            lossfn, 
-            LEARNING_RATE, 
-            EPOCH,
-            BATCH_SIZE, 
-            UPDATEUI_FREQ,
-            VIS_FREQ,
-            multiClass,
-            updateTrainingStatusUI,
-            updateActivationVis
-        )
-
-        if (statusElement && !getStopTraining()) {
-            statusElement.textContent = 'Training finished.'
-        }
+        await trainModel(model, X_train, Y_train, params, updateTrainingStatusUI, updateActivationVis);
+        if (statusElement) statusElement.textContent = 'Training finished.'
     } catch (error: any) {
         console.error("Training failed:", error);
-        statusElement.textContent = `Error: ${error.message || error}`
-        if (getIsTraining()) { endTraining(); }
-        throw error;
+        if (statusElement) statusElement.textContent = `Error: ${error.message || error}`;
     } finally {
-        endTraining();
-        if (runStopButton) runStopButton.textContent = 'Run Model';
+        setTrainingState('IDLE');
+        updateBtnStates();
+        console.log("handleTraining finished, state set to IDLE.");
     }
     console.log(model);
 }

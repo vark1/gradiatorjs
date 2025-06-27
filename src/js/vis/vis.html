@@ -133,10 +133,13 @@
                 <input type="number" id="batch-size" min="1" value="100">
             </div>
         </div>
-
-        <button id="run-model-btn">Run Model</button>
-        <div id="training-status"></div>
     </div>
+    
+    <div class="training-controls-wrapper">
+        <button id="main-action-btn" class="run-btn">Start Training</button>
+        <button id="stop-btn" class="stop-btn" style="display: none;">Stop</button>
+    </div>
+    <div id="training-status" style="margin-top: 1rem; text-align: center;">Ready.</div>
 
     <div class="graph-section-container">
         <h3>Training Progress</h3>

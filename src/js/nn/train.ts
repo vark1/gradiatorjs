@@ -1,9 +1,10 @@
 import { Val } from "../Val/val.js";
 import { Sequential } from "./nn.js";
-import { getStopTraining, endTraining } from "./training_controller.js";
+import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "../utils/utils_train.js";
 import { visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
+import { NetworkParams } from "types_and_interfaces/general.js";
 
 function yieldToBrowser(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
@@ -41,27 +42,12 @@ function* getMiniBatch(X: Val, Y: Val, batchSize: number){
     }
 }
 
-export async function trainModel(
-    model: Sequential,
-    X_train: Val,
-    Y_train: Val,
-    loss_fn: (Y_pred: Val, Y_true: Val) => Val,
-    l_rate: number,
-    epochs: number,
-    batch_size: number,
-    update_ui_freq: number = 10,
-    vis_freq: number = 50,
-    multiClass: boolean,
-    updateUICallback: (
-        epoch: number,
-        batch_idx: number,
-        iter: number, 
-        loss: number, 
-        accuracy: number, 
-    ) => void,
+export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, params: NetworkParams,
+    updateUICallback: (epoch: number, batch_idx: number, iter: number, loss: number, accuracy: number) => void,
     updateActivationVis: (model: Sequential, visdata: visPackage)=> void
 ) : Promise<void> {
 
+    const {loss_fn, l_rate, epochs, batch_size, update_ui_freq, vis_freq, multiClass} = params
     console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
     
     let totalProcessingTime = 0;
@@ -74,6 +60,13 @@ export async function trainModel(
             let batch_idx = 0;
             
             for (const batch of batchGenerator) {
+                while(getIsPaused()) {
+                    if(getStopTraining()) {
+                        console.log("training stopped during pause")
+                        return;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
                 if (getStopTraining()) {
                     console.log(`Training stopped at epoch ${e}`);
                     return;

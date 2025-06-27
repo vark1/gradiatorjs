@@ -1,3 +1,5 @@
+import { Val } from "../Val/val.js";
+
 export type LayerType = 'dense' | 'conv' | 'flatten' | 'maxpool';
 export type ActivationType = 'relu' | 'sigmoid' | 'tanh' | 'softmax';
 export type NNLayer = DenseNNLayer | ConvNNLayer | FlattenNNLayer | MaxPool2DLayer;
@@ -33,4 +35,14 @@ export interface MinMaxInfo {
     minv: number;
     maxv: number;
     dv: number; // Range (maxv - minv)
+}
+
+export interface NetworkParams {
+    loss_fn: (Y_pred: Val, Y_true: Val) => Val,
+    l_rate: number,
+    epochs: number,
+    batch_size: number,
+    update_ui_freq: number,
+    vis_freq: number,
+    multiClass: boolean
 }
