@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "jsfive": "^0.3.14",
     "typescript": "^5.6.3"
   },
   "type": "module",

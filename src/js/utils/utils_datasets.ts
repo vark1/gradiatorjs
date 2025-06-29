@@ -1,92 +1,60 @@
 import { Val } from "../Val/val.js";
 import * as ops from '../Val/ops.js'
 
-export let DATASET_HDF5_TRAIN = null;
-export let DATASET_HDF5_TEST = null;
+declare const hdf5: any;
+declare const pako: any;
 
-export function catvnoncat_loadData() {
-    var file_input = <HTMLInputElement>document.getElementById('datafile');
-    if (!file_input.files) return;
-    var file = file_input.files[0]; // only one file allowed
-    var datafilename = file.name;
-    var reader = new FileReader();
-    reader.onloadend = function (evt) {
-        var barr = evt.target!.result;
-        if (!barr) {
-            console.error('Failed to read file');
-            return;
-        }
-        let dataset = new hdf5.File(barr, datafilename);
-        if(datafilename.includes("train")) {
-            DATASET_HDF5_TRAIN = dataset
-        } else if (datafilename.includes("test")) {
-            DATASET_HDF5_TEST = dataset
-        } else {
-            console.log("Train or Test not found in dataset filename, maybe wrong dataset?")
-        }
-        console.log("train", DATASET_HDF5_TRAIN)
-        console.log("test", DATASET_HDF5_TEST)
-
-    };
-    reader.readAsArrayBuffer(file);
-    file_input.value = "";
+async function loadFile(URL: string){
+    const response = await fetch(URL);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch ${URL}: ${response.statusText}`)
+    }
+    const x = await response.arrayBuffer();
+    return new hdf5.File(x, URL.split('/').pop());
 }
 
-export function catvnoncat_prepareDataset() {
+export async function prepareCatvnoncatData() {
+    const testURL = 'http://127.0.0.1:5500/datasets/catvnoncat/test_catvnoncat.h5';
+    const trainURL = 'http://127.0.0.1:5500/datasets/catvnoncat/train_catvnoncat.h5';
 
-    // shape of dataset: (m, 64, 64, 3)
-    let train_set_x = (<any>DATASET_HDF5_TRAIN).get('train_set_x')
-    let train_x_og = new Val(train_set_x.shape)
-    train_x_og.data = Float64Array.from(train_set_x.value)
-
-    let train_set_y = (<any>DATASET_HDF5_TRAIN).get('train_set_y')    
-    let train_y_og = new Val(train_set_y.shape)
-    train_y_og.data = Float64Array.from(train_set_y.value)
-
-    let test_set_x = (<any>DATASET_HDF5_TEST).get('test_set_x')
-    let test_x_og = new Val(test_set_x.shape)
-    test_x_og.data = Float64Array.from(test_set_x.value)
-
-    let test_set_y = (<any>DATASET_HDF5_TEST).get('test_set_y')
-    let test_y_og = new Val(test_set_y.shape)
-    test_y_og.data = Float64Array.from(test_set_y.value)
-
-    let classes = (<any>DATASET_HDF5_TEST).get("list_classes")
-    train_y_og = train_y_og.reshape([train_y_og.shape[0], 1])  // [m, nout(1 here)]
-    test_y_og = test_y_og.reshape([test_y_og.shape[0], 1])
-
-    console.log(`# Training examples: ${train_x_og.shape[0]}`)
-    console.log(`# Testing examples: ${test_x_og.shape[0]}`)
+    const hdf5_train = await loadFile(trainURL);
+    const hdf5_test = await loadFile(testURL);
     
-    let train_x_flatten = train_x_og.reshape([train_x_og.shape[0], train_x_og.size/train_x_og.shape[0]])  // [m, nin]
-    let test_x_flatten = test_x_og.reshape([test_x_og.shape[0], test_x_og.size/test_x_og.shape[0]])
+    const train_x_raw = hdf5_train.get('train_set_x').value;
+    const train_y_raw = hdf5_train.get('train_set_y').value;
+    const m_train = train_y_raw.length;
+
+    const train_x = new Val([m_train, 64, 64, 3]);
+    train_x.data = Float64Array.from(train_x_raw);
+
+    const train_x_normalized = ops.div(train_x, 255.0);
+
+    const train_y = new Val([m_train, 1]);
+    train_y.data = Float64Array.from(train_y_raw);
+
+    const test_x_raw = hdf5_test.get('test_set_x').value;
+    const test_y_raw = hdf5_test.get('test_set_y').value;
+    const m_test = test_y_raw.length;
+
+    const test_x = new Val([m_test, 64, 64, 3]);
+    test_x.data = Float64Array.from(test_x_raw);
+    const test_x_normalized = ops.div(test_x, 255.0);
     
-    let train_x = ops.div(train_x_flatten, 255)
-    let test_x = ops.div(test_x_flatten, 255)
+    const test_y = new Val([m_test, 1]);
+    test_y.data = Float64Array.from(test_y_raw);
 
-    const nin = train_x.shape[1];   // train_x.shape = [m, nin]
-    const inH = train_set_x.shape[1];
-    const inW = train_set_x.shape[2];
-
+    console.log(`# Training examples: ${train_x.shape[0]}`);
+    console.log(`# Testing examples: ${test_x.shape[0]}`);
+    
     return {
-        "train_x_og": train_x_og,
-        "train_x_flatten": train_x,
-        "train_y": train_y_og,
-        "test_x_og": test_x_og,
-        "test_x_flatten": test_x_flatten,
-        "test_y": test_y_og,
-        "nin": nin,
-        "inh": inH,
-        "inW": inW
-    }
+        "train_x_og": train_x,
+        "train_x": train_x_normalized,
+        "train_y": train_y,
+        "test_x_og": test_x,
+        "test_x": test_x_normalized,
+        "test_y": test_y,
+    };
 }
-
-document.addEventListener('DOMContentLoaded', function () {
-    var fileInput = document.getElementById('datafile');
-    if (fileInput) {
-        fileInput.addEventListener('change', catvnoncat_loadData);
-    }
-});
 
 // MNIST SPECIFIC
 async function loadMNISTData(imagesURL: string, labelsURL: string) {

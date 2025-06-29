@@ -24,9 +24,16 @@ function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: nu
 }
 
 // generator that will yield mini-batches from the full dataset 
-function* getMiniBatch(X: Val, Y: Val, batchSize: number){
+function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = true){
     const numSamples = X.shape[0]
     const indices = Array.from({ length: numSamples }, (_, i) => i);
+
+    if (shuffle) {
+        for (let i=indices.length-1; i>0; i--) {
+            const j=Math.floor(Math.random()*(i+1));
+            [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+    }
 
     const xFeatures = X.size / numSamples;  // H*W*C for images, or F for dense
     const yFeatures = Y.size / numSamples;  // num classes for 1-hot labels
@@ -88,6 +95,17 @@ export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, 
                         continue;
                     }
 
+                    let hasInvalidGrad = false;
+                    for (const gradVal of p.grad) {
+                        if (isNaN(gradVal) || !isFinite(gradVal)) {
+                            console.warn("Invalid gradient found. halting update for this batch", p);
+                            hasInvalidGrad = true;
+                            break;
+                        }
+                    }
+                    if(hasInvalidGrad) continue;
+
+
                     for (let j=0; j<p.data.length; j++) {
                         if (j < p.grad.length) {
                             p.data[j] -= l_rate * p.grad[j];
@@ -101,12 +119,7 @@ export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, 
                 iteration++;
 
                 if (batch_idx % update_ui_freq === 0) {
-                    let accuracy = 100;
-                    if (multiClass) {
-                        accuracy = calcMultiClassAccuracy(Y_pred, Y_batch);
-                    } else {
-                        accuracy = calcBinaryAccuracy(Y_pred, Y_batch);
-                    }
+                    let accuracy = multiClass ? calcMultiClassAccuracy(Y_pred, Y_batch) : calcBinaryAccuracy(Y_pred, Y_batch);
                     updateUICallback(e, batch_idx, loss.data[0], accuracy, iterTime);
                 }
 

@@ -1,10 +1,6 @@
 import { Val } from "../Val/val.js";
 
-export function calcBinaryAccuracy(
-    y_pred_val: Val,
-    y_true_val: Val,
-    threshold: number = 0.5
-) {
+export function calcBinaryAccuracy(y_pred_val: Val, y_true_val: Val, threshold: number = 0.5) {
     if(y_pred_val.size !== y_true_val.size) {
         throw new Error(`Cannot cal accuracy: Prediction size ${y_pred_val.size} doesn't match true label size (${y_true_val.size}). Shapes: pred ${y_pred_val.shape}, true ${y_true_val.shape}`);
     }
@@ -34,10 +30,7 @@ export function calcBinaryAccuracy(
     return accuracy;
 }
 
-export function calcMultiClassAccuracy(
-    y_pred_val: Val,
-    y_true_val: Val,
-) {
+export function calcMultiClassAccuracy(y_pred_val: Val, y_true_val: Val) {
     if (y_pred_val.dim !== 2 || y_true_val.dim !== 2 || y_pred_val.shape[0] !== y_true_val.shape[0] || y_pred_val.shape[1] !== y_true_val.shape[1]) {
         throw new Error(`Shape mismatch for multi-class accuracy. Pred: [${y_pred_val.shape.join(',')}], True: [${y_true_val.shape.join(',')}]`);
     }

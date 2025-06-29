@@ -1,5 +1,5 @@
 :root {
-    --width: 800px;
+    --width: 1000px;
     --font-main: Verdana, sans-serif;
     --font-secondary: Verdana, sans-serif;
     --font-scale: 1em;
@@ -191,16 +191,7 @@ input {
 .training-controls-wrapper {
     display: flex;
     gap: 10px;
-    margin-top: 1rem;
-}
-.run-btn {
-    flex-grow: 1;
-    font-size: 1rem;
-    padding: 0.75rem;
 }
 .stop-btn {
-    flex-grow: 1;
     background-color: #ef4444;
-    font-size: 1rem;
-    padding: 0.75rem;
 }

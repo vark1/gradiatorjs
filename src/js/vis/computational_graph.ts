@@ -3,23 +3,34 @@ import { calculateMinMax } from "../utils/utils.js";
 import { Val } from "../Val/val.js";
 import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";
 
-function renderFeatureMap(canvas: HTMLCanvasElement, mapData: Float64Array, W: number, H: number) {
+function renderFeatureMap(canvas: HTMLCanvasElement, mapData: Float64Array, W: number, H: number, C: number) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     canvas.width = W;
     canvas.height = H;
 
-    const mm = calculateMinMax(mapData);
     const imageData = ctx.createImageData(W, H);
     const dataArr = imageData.data;
 
-    for (let i=0; i<mapData.length; i++) {
-        const normalized = mm.dv===0?0.5:(mapData[i]-mm.minv)/mm.dv;
-        const grayVal = Math.floor(normalized*255);
-        const p = i*4;
-        dataArr[p] = dataArr[p+1] = dataArr[p+2] = grayVal;
-        dataArr[p+3] = 255;
+    if (C===1){ //grayscale (like MNIST)
+        const mm = calculateMinMax(mapData);
+        for (let i=0; i<mapData.length; i++) {
+            const normalized = mm.dv===0?0.5:(mapData[i]-mm.minv)/mm.dv;
+            const grayVal = Math.floor(normalized*255);
+            const p = i*4;
+            dataArr[p] = dataArr[p+1] = dataArr[p+2] = grayVal;
+            dataArr[p+3] = 255;
+        }
+    } else if (C===3){  //RGB
+        for (let i=0; i<W*H; i++) {
+            const pout=i*4;
+            const pin = i*3;
+            dataArr[pout] = mapData[pin] * 255;
+            dataArr[pout + 1] = mapData[pin + 1] * 255;
+            dataArr[pout + 2] = mapData[pin + 2] * 255;
+            dataArr[pout + 3] = 255;
+        }
     }
     ctx.putImageData(imageData, 0, 0);
 }
@@ -45,7 +56,7 @@ function renderActivationCol(actVal: Val|null, label: string, container: HTMLEle
             for (let pix=0; pix<mapSize; pix++) {
                 mapData[pix] = actVal.data[pix*C + m];
             }
-            renderFeatureMap(canv, mapData, W, H);
+            renderFeatureMap(canv, mapData, W, H, 1);
             const maxDisplayDim = 48;
             let displayW, displayH;
             if (W >= H) {       // Wider or square
@@ -65,7 +76,7 @@ function renderActivationCol(actVal: Val|null, label: string, container: HTMLEle
     } else {    // dense and flatten
         const numNeurons = shape[1] || 1;
         const canv = document.createElement('canvas');
-        renderFeatureMap(canv, actVal.data, 1, numNeurons);
+        renderFeatureMap(canv, actVal.data, 1, numNeurons, 1);
         
         canv.style.width = '16px';
         canv.style.height = '512px';
@@ -107,7 +118,7 @@ export function renderNetworkGraph(container: HTMLElement, actData: LayerOutputD
     const inputCanv = document.createElement('canvas');
     inputCanv.className = 'input-image-canvas';
     const [_, H_in, W_in, C_in] = sampleX.shape;
-    renderFeatureMap(inputCanv, sampleX.data, W_in, H_in);
+    renderFeatureMap(inputCanv, sampleX.data, W_in, H_in, C_in);
     inputCanv.style.width = '64px';
     inputCanv.style.height = '64px';
     const inputLabel = document.createElement('div');
@@ -283,7 +294,7 @@ function drawConvFilters(popupEl: HTMLElement, convLayer: Conv): void {
             filterData[i] = filters.data[flatIdx];
         }
         const canv = document.createElement('canvas');
-        renderFeatureMap(canv, filterData, K, K);
+        renderFeatureMap(canv, filterData, K, K, 1);
         canv.style.width = '32px';
         canv.style.height = '32px';
         popupEl.appendChild(canv);
