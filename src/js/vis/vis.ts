@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 async function loadDataset() {
-    const datasetType = (<HTMLSelectElement>document.getElementById('datafile')).value;
+    const datasetType = (<HTMLSelectElement>document.getElementById('dataset-select')).value;
     let X = new Val([]);
     let Y = new Val([]);
 

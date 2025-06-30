@@ -1,6 +1,7 @@
-import { SerializableNNLayer, LayerCreationOptions } from "../types_and_interfaces/vis_interfaces.js";
+import { SerializableNNLayer, LayerCreationOptions, DatasetOption } from "../types_and_interfaces/vis_interfaces.js";
 import { ActivationType, LayerType, NNLayer } from "../types_and_interfaces/general.js";
 import { getLayerColor } from "../utils/utils_vis.js";
+import { PRESETS } from "../utils/utils_vis_preset.js";
 
 export class NeuralNetworkVisualizer {
     private container: HTMLElement;
@@ -8,6 +9,7 @@ export class NeuralNetworkVisualizer {
     private selected_layer: NNLayer | null = null;
     private config_panel: HTMLElement;
     private placeholder: HTMLElement;
+    private draggedLayerId: string | null = null;
 
     private readonly STORAGE_KEY = 'neuralNetworkVisualizerConfig';
 
@@ -31,7 +33,29 @@ export class NeuralNetworkVisualizer {
         })
 
         this.setupEventListeners();
+        this.setupDragAndDrop();
         this.loadNetworkFromLocalStorage();
+    }
+
+    private renderNetwork(): void {
+        this.container.innerHTML = '';
+        this.layers.forEach((layer, idx)=> {
+            if (idx>0) {
+                const arrow = document.createElement('div');
+                arrow.className = 'layer-connector';
+                this.container.appendChild(arrow);
+            }
+            const layerEl = this.createLayerElement(layer);
+            layer.element = layerEl;
+            this.container.appendChild(layerEl);
+        });
+
+        if (this.selected_layer) {
+            const selectedEl = this.layers.find(l=>l.id===this.selected_layer!.id)?.element;
+            if (selectedEl) {
+                selectedEl.classList.add('selected');
+            }
+        };
     }
 
     private setupEventListeners() {
@@ -41,6 +65,10 @@ export class NeuralNetworkVisualizer {
         document.getElementById('add-maxpool')?.addEventListener('click', ()=> this.addLayer({type:'maxpool', pool_size: 2, stride: 2}));
         document.getElementById('apply-layer-changes')?.addEventListener('click', ()=>this.applyLayerChanges());
         document.getElementById('delete-selected-layer')?.addEventListener('click', ()=>this.deleteSelectedLayer());
+        document.getElementById('dataset-select')?.addEventListener('change', (e) => {
+            const value = (e.target as HTMLSelectElement).value as DatasetOption;
+            this.applyDatasetPreset(value);
+        });
 
         document.getElementById('clear-network')?.addEventListener('click', ()=> {
             if (!confirm("Are you sure you want to clear the current network?")) return;
@@ -60,7 +88,6 @@ export class NeuralNetworkVisualizer {
         });
 
         document.getElementById('load-network')?.addEventListener('click', ()=> {
-
             if (!localStorage.getItem(this.STORAGE_KEY)) {
                 alert("No saved network found in browser storage.");
                 return;
@@ -81,6 +108,84 @@ export class NeuralNetworkVisualizer {
             if (statusDiv) statusDiv.textContent = 'Cleared saved network from browser storage.';
             console.log("Cleared saved network.");
         });
+    }
+    
+    private setupDragAndDrop(): void {
+        this.container.addEventListener('dragstart', (e)=> {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('layer')) {
+                this.draggedLayerId = target.dataset.id || null;
+                setTimeout(()=>target.classList.add('dragging'), 0);
+            }
+        });
+        
+        this.container.addEventListener('dragend', (e)=> {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('layer')) {
+                target.classList.remove('dragging');
+            }
+            this.draggedLayerId = null;
+        });
+
+        this.container.addEventListener('dragover', (e)=> {
+            e.preventDefault();
+            const placeholder = this.getOrCreatePlaceholder();
+            const afterEl = this.getDragAfterEl(this.container, e.clientX);
+            this.container.insertBefore(placeholder, afterEl);
+        });
+
+        this.container.addEventListener('drop', (e)=> {
+            e.preventDefault();
+            this.container.querySelector('.drag-over-placeholder')?.remove();
+            if (!this.draggedLayerId) return;
+
+            const draggedIdx = this.layers.findIndex(l=>l.id===this.draggedLayerId);
+            if (draggedIdx===-1)    return;
+            
+            const draggedLayer = this.layers.splice(draggedIdx, 1)[0];
+            const afterEl = this.getDragAfterEl(this.container, e.clientX);
+            const afterElId = afterEl ? (afterEl as HTMLElement).dataset.id : null;
+            const newIdx = afterElId ? this.layers.findIndex(l=>l.id===afterElId):this.layers.length;
+
+            this.layers.splice(newIdx, 0, draggedLayer);
+            this.renderNetwork();
+        });
+    }
+
+    private getOrCreatePlaceholder(): HTMLElement {
+        let placeholder = this.container.querySelector('.drag-over-placeholder');
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.className = 'drag-over-placeholder';
+        }
+        return placeholder as HTMLElement;
+    }
+
+    getDragAfterEl(container: HTMLElement, x: number) {
+        const draggableEl = Array.from(container.querySelectorAll('.layer:not(.dragging)'));
+        return draggableEl.reduce((closest: { offset: number, element: Element | null }, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = x-box.left-box.width/2;
+            if (offset<0 && offset>closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    applyDatasetPreset(datasetName: DatasetOption) {
+        const preset = PRESETS[datasetName];
+        if (!preset) return;
+
+        if (!confirm(`Do you want to replace your current network and params(l_rate, batchsize, epochs) with the preset for "${datasetName}"?`)) return;
+        this.clearNetwork();
+        preset.network.forEach(opts => this.addLayer(opts));
+
+        (<HTMLInputElement>document.getElementById('learning-rate')).value = preset.params.l_rate.toString();
+        (<HTMLInputElement>document.getElementById('epoch')).value = preset.params.epochs.toString();
+        (<HTMLInputElement>document.getElementById('batch-size')).value = preset.params.batch_size.toString();
+        console.log(`Loaded preset for ${datasetName}`);
     }
 
     // Converts the current network layer structure into a serializable JSON object.
@@ -142,7 +247,7 @@ export class NeuralNetworkVisualizer {
         layer_element.className = `layer ${layerData.type}`
         layer_element.style.background = getLayerColor(layerData.type)
         layer_element.dataset.id = layerData.id;
-        
+        layer_element.setAttribute('draggable', 'true');
         let textContent = `${layerData.type}\n`;
         switch(layerData.type) {
             case 'dense':
@@ -201,6 +306,8 @@ export class NeuralNetworkVisualizer {
 
         this.layers.push(newLayer)
         this.container.appendChild(layer_element);
+
+        this.renderNetwork();
     }
 
     deleteSelectedLayer() {
@@ -226,6 +333,8 @@ export class NeuralNetworkVisualizer {
         this.container.removeChild(layer_element);
 
         this.layers.splice(layer_index, 1);
+
+        this.renderNetwork();
     }
 
     private selectLayer(layer_id: string) {

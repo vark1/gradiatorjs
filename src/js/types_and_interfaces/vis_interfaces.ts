@@ -40,3 +40,10 @@ export interface visPackage {
     sampleY_label: number;
     layerOutputs: { Z: Val | null; A: Val | null; }[];
 }
+
+const datasetOptions = {
+  mnist: 'mnist',
+  catvnoncat: 'catvnoncat',
+} as const;
+
+export type DatasetOption = keyof typeof datasetOptions;

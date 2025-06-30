@@ -18,11 +18,7 @@ body {
     padding: 20px;
 }
 
-.viewport {
-    position: relative;
-    border: 1px solid #ccc;
-    text-align: center;
-}
+input { width: 100px; }
 
 #network-container {
     position: relative;
@@ -37,19 +33,7 @@ body {
     background-color: #f9f9f9;
 }
 
-.layer-config {
-    display: none;
-}
-
-.layer-config.show {
-    display: block;
-}
-
-input {
-    width: 100px;
-}
-
-/* -----------------------LAYER start-----------------------*/
+/* --- Layer --- */
 
 .layer {
     display: flex;
@@ -63,22 +47,39 @@ input {
     text-align: center;
     min-width: 80px;
     min-height: 80px;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.2s;
-    white-space: pre-line; /* Allow line breaks from \n */
-    position: relative; /* For absolute positioning of canvas if needed later */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    cursor: grab;
+    transition: all 0.1s ease-in-out;
+    white-space: pre-line;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    border-top: 4px solid #555; 
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .layer.selected {
-    border-color: #FFD700; /* Gold border for selected */
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    border-color: #FFD700;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+    border: 2px solid #000;
 }
 
-/* -----------------------LAYER end-----------------------*/
+.layer-node.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    cursor: grabbing;
+}
+.drag-over-placeholder {
+    width: 8px;
+    height: 120px;
+    background-color: #FFD700;
+    border-radius: 4px;
+    align-self: center;
+    transition: all 0.2s ease;
+}
 
-/* -----------------------LAYER ARROWS start-----------------------*/
+/* --- Layer arrows --- */
 
 .layer-connector {
     flex-grow: 1;
@@ -99,8 +100,7 @@ input {
     border-right: 2px solid #555;
 }
 
-/* -----------------------LAYER ARROWS end-----------------------*/
-
+/* --- config panel --- */
 
 #delete-selected-layer {
     background: #ff4444;
@@ -108,28 +108,15 @@ input {
     border-color: #cc0000;
 }
 
-#delete-selected-layer:hover {
-    background: #cc0000;
-}
+#delete-selected-layer:hover { background: #cc0000; }
 
-#neurons-input {
-    width: 50px;
-}
+.layer-info { margin-bottom: 15px; }
 
-.layer.selected {
-    border: 2px solid #000;
-    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
-}
+.layer-info p { margin: 5px 0; }
 
-.layer-info {
-    margin-bottom: 15px;
-}
+.layer-config { display: none; }
 
-.layer-info p {
-    margin: 5px 0;
-}
-
-/* -----------------------Config panel start-----------------------*/
+.layer-config.show { display: block; }
 
 .config-panel {
     width: 300px;
@@ -162,23 +149,13 @@ input {
     background: #cc0000;
 }
 
-/* -----------------------Config panel END----------------------- */
+/* --- Layer options --- */
 
-/* -----------------------Layer options START----------------------- */
+.network-options { display: inline-block; }
 
-.network-options {
-    display: inline-block;
-}
+/* --- Chart --- */
 
-/* -----------------------Layer options end----------------------- */
-
-/* -----------------------Chart START----------------------- */
-
-.graph-section-container {
-    display: inline-block;
-}
-
-/* -----------------------Chart END----------------------- */
+.graph-section-container { display: inline-block; }
 
 .chart-container {
     width: 800px;
@@ -188,10 +165,11 @@ input {
     height: 400px;
 }
 
+/* --- Start/stop buttons --- */
+
 .training-controls-wrapper {
     display: flex;
     gap: 10px;
 }
-.stop-btn {
-    background-color: #ef4444;
-}
+
+.stop-btn { background-color: #ef4444; }
