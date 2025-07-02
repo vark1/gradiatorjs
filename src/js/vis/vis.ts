@@ -11,9 +11,21 @@ import { LossGraph } from "./loss_graph.js";
 import { NetworkParams } from "types_and_interfaces/general.js";
 import { Val } from "../Val/val.js";
 
+let currentModel: Sequential | null = null; 
+
 const mainActionBtn = <HTMLButtonElement>document.getElementById('main-action-btn');
 const stopBtn = <HTMLButtonElement>document.getElementById('stop-btn');
 const statusElement = <HTMLElement>document.getElementById('training-status');
+
+function downloadObjectAsJSON(exportObj: any, exportName: string): void {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+    const x = document.createElement('a');
+    x.setAttribute('href', dataStr);
+    x.setAttribute("download", exportName);
+    document.body.appendChild(x);
+    x.click();
+    x.remove();
+}
 
 function updateBtnStates() {
     if (!mainActionBtn || !stopBtn) return;
@@ -60,6 +72,21 @@ document.addEventListener('DOMContentLoaded', () => {
     lossGraph = new LossGraph('loss-accuracy-chart');
 })
 
+document.getElementById('download-model-btn')?.addEventListener('click', () => {
+    if (!currentModel) {
+        alert("No trained model available to downlaod. please run training first");
+        return;
+    }
+    
+    try {
+        const modelJSON = currentModel.toJSON();
+        downloadObjectAsJSON(modelJSON, 'trained_model.json');
+    } catch (error) {
+        console.error("Failed to serialize or download model:", error);
+        alert("Error: Could not download model. Check console for details.");
+    }
+});
+
 async function loadDataset() {
     const datasetType = (<HTMLSelectElement>document.getElementById('dataset-select')).value;
     let X = new Val([]);
@@ -87,6 +114,7 @@ async function handleTraining() {
     const [X, Y] = await loadDataset();
 
     const [model, multiClass] = createEngineModelFromVisualizer(VISUALIZER, X);
+    currentModel = model;
     
     const params: NetworkParams = {
         loss_fn: multiClass? numUtil.crossEntropyLoss_softmax: numUtil.crossEntropyLoss_binary,
@@ -99,7 +127,7 @@ async function handleTraining() {
     }
 
     try {
-        await trainModel(model, X, Y, params, updateTrainingStatusUI, updateActivationVis);
+        await trainModel(currentModel, X, Y, params, updateTrainingStatusUI, updateActivationVis);
         if (statusElement) statusElement.textContent = 'Training finished.'
     } catch (error: any) {
         console.error("Training failed:", error);

@@ -42,6 +42,10 @@ export class Module {
     forward(X: Val): Val {
         throw new Error("Forward method not implemented.");
     }
+
+    toJSON(): any {
+        throw new Error(`toJSON() not implemented for ${this.constructor.name}`);
+    }
 }
 
 /*Dense/fully connected layer (A = nonlin(Wt.X + B))*/
@@ -76,6 +80,17 @@ export class Dense extends Module {
         this.last_Z = Z;
         this.last_A = A;
         return A;
+    }
+
+    toJSON(): any {
+        return {
+            layerType: 'Dense',
+            nin: this.nin,
+            nout: this.nout,
+            activation: this.activation?.name || 'none',
+            weights: Array.from(this.W.data),
+            biases: Array.from(this.B.data)
+        };
     }
 }
 
@@ -156,6 +171,20 @@ export class Conv extends Module {
         this.last_A = A;
         return A;
     }
+
+    toJSON(): any {
+        return {
+            layerType: 'Conv2D',
+            in_channels: this.in_channels,
+            out_channels: this.out_channels,
+            kernel_size: this.kernel_size,
+            stride: this.stride,
+            padding: this.padding,
+            activation: this.activation?.name || 'none',
+            kernels: Array.from(this.kernel.data),
+            biases: Array.from(this.biases.data)
+        };
+    }
 }
 
 export class Flatten extends Module {
@@ -172,6 +201,12 @@ export class Flatten extends Module {
         this.last_Z = Y;
         this.last_A = Y;
         return Y;
+    }
+
+    toJSON(): any {
+        return {
+            layerType: 'Flatten'
+        };
     }
 }
 
@@ -190,6 +225,14 @@ export class MaxPool2D extends Module {
         this.last_Z = Y;
         this.last_A = Y;
         return Y;
+    }
+
+    toJSON(): any {
+        return {
+            layerType: 'MaxPooling2D',
+            pool_size: this.pool_size,
+            stride: this.stride
+        };
     }
 }
 
@@ -219,5 +262,13 @@ export class Sequential extends Module {
             A: layer.last_A
         }));
         return outputs;
+    }
+
+    toJSON(): any {
+        const modelJSON = {
+            modelType: 'Sequential',
+            layers: this.layers.map(layer => layer.toJSON())
+        };
+        return modelJSON;
     }
 }
