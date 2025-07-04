@@ -1,8 +1,8 @@
-import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/layers.js';
-import * as afn from '../Val/activations.js';
+import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../../layers.js';
+import * as afn from '../../activations.js';
 import { NNLayer } from '../types_and_interfaces/general.js';
-import { Val } from '../Val/val.js';
-import { assert } from '../utils/utils.js';
+import { Val } from '../../val.js';
+import { assert } from '../../utils.js';
 import { NeuralNetworkVisualizer } from './neuralNetworkVisualizer.js';
 
 const AFN_MAP = {

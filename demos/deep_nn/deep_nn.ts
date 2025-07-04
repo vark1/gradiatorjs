@@ -1,8 +1,8 @@
 import { DATASET_HDF5_TEST, DATASET_HDF5_TRAIN, catvnoncat_prepareDataset } from '../../src/js/utils/utils_datasets.js'
-import { Val } from '../../src/js/Val/val.js'
-import * as ops from '../../src/js/Val/ops.js'
-import { assert } from '../../src/js/utils/utils.js'
-import { relu, sigmoid, tanh } from '../../src/js/Val/activations.js'
+import { Val } from '../../src/val.js'
+import * as ops from '../../src/ops.js'
+import { assert } from '../../src/utils.js'
+import { relu, sigmoid, tanh } from '../../src/activations.js'
 
 interface dynamicObject {
     [key: string]: Val

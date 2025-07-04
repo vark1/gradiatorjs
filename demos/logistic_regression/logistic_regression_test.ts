@@ -1,4 +1,4 @@
-import { Val } from "../../src/js/Val/val.js"
+import { Val } from "../../src/val.js"
 
 function Test() {
     let w = new Val([2,1]) 

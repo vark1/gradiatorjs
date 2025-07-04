@@ -1,4 +1,4 @@
-import { Val } from "../Val/val.js";
+import { Val } from "./val.js";
 
 export function calcBinaryAccuracy(y_pred_val: Val, y_true_val: Val, threshold: number = 0.5) {
     if(y_pred_val.size !== y_true_val.size) {

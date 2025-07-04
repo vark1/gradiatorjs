@@ -1,4 +1,4 @@
-import { Val } from "../Val/val.js";
+import { Val } from "../../val.js";
 
 export type LayerType = 'dense' | 'conv' | 'flatten' | 'maxpool';
 export type ActivationType = 'relu' | 'sigmoid' | 'tanh' | 'softmax';

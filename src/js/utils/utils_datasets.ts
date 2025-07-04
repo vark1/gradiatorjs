@@ -1,5 +1,5 @@
-import { Val } from "../Val/val.js";
-import * as ops from '../Val/ops.js'
+import { Val } from "../../val.js";
+import * as ops from '../../ops.js'
 
 declare const hdf5: any;
 declare const pako: any;

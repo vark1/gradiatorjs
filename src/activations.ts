@@ -1,4 +1,4 @@
-import { assert } from '../utils/utils.js';
+import { assert } from './utils.js';
 import { Val } from './val.js';
 
 export function relu (Z: Val) : Val{

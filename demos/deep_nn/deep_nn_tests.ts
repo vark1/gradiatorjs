@@ -1,4 +1,4 @@
-import { Val } from "../../src/js/Val/val.js"
+import { Val } from "../../src/val.js"
 import * as fn from '../deep_nn/deep_nn.js'
 
 // TODO: Change console.log to assert

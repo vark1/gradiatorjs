@@ -1,4 +1,4 @@
-import { Val } from "Val/val";
+import { Val } from "../../val.js";
 import { ActivationType, NNLayer, LayerType } from "./general";
 
 export type LayerCreationOptions = DenseLayerOptions | ConvLayerOptions | MaxPoolLayerOptions | FlattenLayerOptions;

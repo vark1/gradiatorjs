@@ -1,15 +1,15 @@
 import { TrainingProgress, visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { prepareCatvnoncatData, prepareMNISTData } from "../utils/utils_datasets.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
-import { trainModel } from "../nn/train.js";
-import * as numUtil from "../utils/utils_num.js";
-import { setTrainingState, getIsPaused, getIsTraining, getStopTraining } from "../nn/state_management.js";
+import { trainModel } from "../../train.js";
+import * as numUtil from "../../loss.js";
+import { setTrainingState, getIsPaused, getIsTraining, getStopTraining } from "../../state_management.js";
 import { renderNetworkGraph } from "./computational_graph.js";
-import { Sequential } from "../nn/layers.js";
+import { Sequential } from "../../layers.js";
 import { NeuralNetworkVisualizer } from "./neuralNetworkVisualizer.js";
 import { LossGraph } from "./loss_graph.js";
 import { NetworkParams } from "types_and_interfaces/general.js";
-import { Val } from "../Val/val.js";
+import { Val } from "../../val.js";
 
 let currentModel: Sequential | null = null; 
 

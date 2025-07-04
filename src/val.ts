@@ -1,5 +1,5 @@
-import { assert } from "../utils/utils.js";
-import { gaussianRandom } from "../utils/utils_num.js";
+import { assert } from "./utils.js";
+import { gaussianRandom } from "./utils.js";
 
 /* Everything in the neural net will be made of Val. */
 /*

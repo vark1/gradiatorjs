@@ -1,7 +1,7 @@
-import { Val } from "../Val/val.js"
-import * as op from "../Val/ops.js"
-import { gaussianRandom } from "../utils/utils_num.js";
-import { assert } from "../utils/utils.js";
+import { Val } from "./val.js"
+import * as op from "./ops.js"
+import { gaussianRandom } from "./utils.js";
+import { assert } from "./utils.js";
 
 /*
 A module represents a base class that will manage parameters or zero grads.

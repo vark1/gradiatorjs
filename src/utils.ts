@@ -1,10 +1,17 @@
-import { Val } from "../Val/val.js";
-import { MinMaxInfo } from "../types_and_interfaces/general.js";
+import { Val } from "./val.js";
+import { MinMaxInfo } from "./js/types_and_interfaces/general.js";
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {
         throw new Error(typeof msg === "string" ? msg : msg());
     }
+}
+
+export function gaussianRandom(mean=0, stdev=1) : number {
+    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    return z * stdev + mean;
 }
 
 export function arraysEqual(a: Float64Array, b: Float64Array): boolean {

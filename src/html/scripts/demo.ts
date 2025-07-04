@@ -1,6 +1,6 @@
-import { Val } from "../../js/Val/val.js";
-import * as op from "../../js/Val/ops.js"  // Assuming you have ops.ts with add, mul, etc.
-import { tanh } from "../../js/Val/activations.js"
+import { Val } from "../../val.js";
+import * as op from "../../ops.js"  // Assuming you have ops.ts with add, mul, etc.
+import { tanh } from "../../activations.js"
 
 /* 
 --------------------------------------------------------------------------------------------------------

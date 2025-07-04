@@ -1,12 +1,5 @@
-import { Val } from '../Val/val.js';
-import * as op from '../Val/ops.js'
-
-export function gaussianRandom(mean=0, stdev=1) : number {
-    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
-    const v = Math.random();
-    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-    return z * stdev + mean;
-}
+import { Val } from './val.js';
+import * as op from './ops.js'
 
 export function meanSquaredErrorLoss(y_pred: Val, y_true: Val): Val {
     return op.div(op.sum(op.pow(op.sub(y_pred, y_true), 2)), y_true.size);

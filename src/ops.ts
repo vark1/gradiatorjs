@@ -1,4 +1,4 @@
-import {assert, broadcast, reduceGradient} from '../utils/utils.js'
+import {assert, broadcast, reduceGradient} from './utils.js'
 import { Val } from './val.js';
 
 export function add(t1: Val|number, t2: Val|number) : Val {
