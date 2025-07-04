@@ -18,15 +18,11 @@
         "strict": true,
         "skipLibCheck": true
     },
-    "plugins": [
-        { "jsfive": "jsfive" }
-    ],
     "exclude": [
         "node_modules"
     ],
     "include": [
         "src/**/*.ts",
         "demos/**/*.ts",
-        "jsfive.d.ts"
     ],
 }

@@ -2,13 +2,9 @@ import { Val } from "../Val/val.js";
 import { Sequential } from "./nn.js";
 import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "../utils/utils_train.js";
-import { visPackage } from "../types_and_interfaces/vis_interfaces.js";
+import { TrainingProgress } from "../types_and_interfaces/vis_interfaces.js";
 import { assert } from "../utils/utils.js";
 import { NetworkParams } from "types_and_interfaces/general.js";
-
-function yieldToBrowser(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 0));
-}
 
 function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: number, features: number) {
     const batchShape = [currentBatchSize, ...ogVal.shape.slice(1)];
@@ -49,12 +45,17 @@ function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = tru
     }
 }
 
-export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, params: NetworkParams,
-    updateUICallback: (epoch: number, batch_idx: number, iter: number, loss: number, accuracy: number) => void,
-    updateActivationVis: (model: Sequential, visdata: visPackage)=> void
+export async function trainModel(
+    model: Sequential, 
+    X_train: Val, 
+    Y_train: Val, 
+    params: NetworkParams,
+    callbacks?: {
+        onBatchEnd?: (progress: TrainingProgress) => void;
+    }
 ) : Promise<void> {
 
-    const {loss_fn, l_rate, epochs, batch_size, update_ui_freq, vis_freq, multiClass} = params
+    const {loss_fn, l_rate, epochs, batch_size, multiClass} = params
     console.log(`----starting training. ${epochs} epochs, batch size ${batch_size}----`);
     
     let totalProcessingTime = 0;
@@ -118,12 +119,9 @@ export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, 
                 totalProcessingTime += iterTime;
                 iteration++;
 
-                if (batch_idx % update_ui_freq === 0) {
+                if(callbacks?.onBatchEnd) {
                     let accuracy = multiClass ? calcMultiClassAccuracy(Y_pred, Y_batch) : calcBinaryAccuracy(Y_pred, Y_batch);
-                    updateUICallback(e, batch_idx, loss.data[0], accuracy, iterTime);
-                }
 
-                if (batch_idx % vis_freq === 0) {
                     assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
 
                     const sampleX = new Val(batch.x.shape.slice(1)).reshape([1, ...batch.x.shape.slice(1)]);
@@ -138,17 +136,20 @@ export async function trainModel(model: Sequential, X_train: Val, Y_train: Val, 
                         sampleY_label = y_sample_data.indexOf(1);
                     }
 
-                    const layerOutputs = model.getLayerOutputs(sampleX);
-
-                    const visData = {
-                        sampleX: sampleX,
-                        sampleY_label: sampleY_label,
-                        layerOutputs: layerOutputs
-                    };
-                    updateActivationVis(model, visData);
+                    callbacks.onBatchEnd({
+                        epoch: e,
+                        batch_idx: batch_idx,
+                        loss: loss.data[0],
+                        accuracy: accuracy,
+                        iterTime: iterTime,
+                        visData: {
+                            sampleX: sampleX,
+                            sampleY_label: sampleY_label,
+                            layerOutputs: model.getLayerOutputs(sampleX)
+                        }
+                    });
                 }
                 batch_idx++;
-                await yieldToBrowser();
             }
         }
 

@@ -47,3 +47,12 @@ const datasetOptions = {
 } as const;
 
 export type DatasetOption = keyof typeof datasetOptions;
+
+export interface TrainingProgress{
+    epoch: number,
+    batch_idx: number,
+    loss: number,
+    accuracy: number, 
+    iterTime: number,
+    visData: visPackage
+}

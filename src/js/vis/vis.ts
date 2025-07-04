@@ -1,9 +1,9 @@
-import { visPackage } from "../types_and_interfaces/vis_interfaces.js";
+import { TrainingProgress, visPackage } from "../types_and_interfaces/vis_interfaces.js";
 import { prepareCatvnoncatData, prepareMNISTData } from "../utils/utils_datasets.js";
 import { createEngineModelFromVisualizer } from "./integration.js";
 import { trainModel } from "../nn/train.js";
 import * as numUtil from "../utils/utils_num.js";
-import { setTrainingState, getIsPaused, getIsTraining } from "../nn/state_management.js";
+import { setTrainingState, getIsPaused, getIsTraining, getStopTraining } from "../nn/state_management.js";
 import { renderNetworkGraph } from "./computational_graph.js";
 import { Sequential } from "../nn/nn.js";
 import { NeuralNetworkVisualizer } from "./neuralNetworkVisualizer.js";
@@ -121,13 +121,20 @@ async function handleTraining() {
         l_rate: parseFloat((<HTMLInputElement>document.getElementById('learning-rate')).value) || 0.01,
         epochs: parseInt((<HTMLInputElement>document.getElementById('epoch')).value) || 500,
         batch_size: parseInt((<HTMLInputElement>document.getElementById('batch-size')).value) || 100,
-        update_ui_freq: 10,
-        vis_freq: 50,
         multiClass: multiClass
     }
 
+    const trainingCallbacks = {
+        onBatchEnd: (progress: TrainingProgress) => {
+            updateTrainingStatusUI(progress.epoch, progress.batch_idx, progress.loss, progress.accuracy, progress.iterTime);
+            if (progress.visData && currentModel) {
+                updateActivationVis(currentModel, progress.visData);
+            }
+        }
+    };
+
     try {
-        await trainModel(currentModel, X, Y, params, updateTrainingStatusUI, updateActivationVis);
+        await trainModel(currentModel, X, Y, params, trainingCallbacks);
         if (statusElement) statusElement.textContent = 'Training finished.'
     } catch (error: any) {
         console.error("Training failed:", error);

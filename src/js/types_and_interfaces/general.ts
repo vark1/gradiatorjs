@@ -42,7 +42,5 @@ export interface NetworkParams {
     l_rate: number,
     epochs: number,
     batch_size: number,
-    update_ui_freq: number,
-    vis_freq: number,
     multiClass: boolean
 }
