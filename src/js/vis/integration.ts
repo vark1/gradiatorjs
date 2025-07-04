@@ -1,4 +1,4 @@
-import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/nn.js';
+import { Sequential, Dense, Module, Conv, Flatten, MaxPool2D } from '../nn/layers.js';
 import * as afn from '../Val/activations.js';
 import { NNLayer } from '../types_and_interfaces/general.js';
 import { Val } from '../Val/val.js';

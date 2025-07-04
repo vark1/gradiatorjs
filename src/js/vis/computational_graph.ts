@@ -1,4 +1,4 @@
-import { Conv, Dense, Flatten, MaxPool2D, Module, Sequential } from "../nn/nn.js";
+import { Conv, Dense, Flatten, MaxPool2D, Module, Sequential } from "../nn/layers.js";
 import { calculateMinMax } from "../utils/utils.js";
 import { Val } from "../Val/val.js";
 import { LayerOutputData } from "../types_and_interfaces/vis_interfaces.js";

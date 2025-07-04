@@ -5,7 +5,7 @@ import { trainModel } from "../nn/train.js";
 import * as numUtil from "../utils/utils_num.js";
 import { setTrainingState, getIsPaused, getIsTraining, getStopTraining } from "../nn/state_management.js";
 import { renderNetworkGraph } from "./computational_graph.js";
-import { Sequential } from "../nn/nn.js";
+import { Sequential } from "../nn/layers.js";
 import { NeuralNetworkVisualizer } from "./neuralNetworkVisualizer.js";
 import { LossGraph } from "./loss_graph.js";
 import { NetworkParams } from "types_and_interfaces/general.js";

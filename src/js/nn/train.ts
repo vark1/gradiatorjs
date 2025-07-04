@@ -1,5 +1,5 @@
 import { Val } from "../Val/val.js";
-import { Sequential } from "./nn.js";
+import { Sequential } from "./layers.js";
 import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "../utils/utils_train.js";
 import { TrainingProgress } from "../types_and_interfaces/vis_interfaces.js";
