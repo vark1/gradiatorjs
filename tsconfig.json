@@ -6,7 +6,7 @@
         "moduleResolution": "node",
         "allowJs": true, 
         "checkJs": false,
-        "outDir": "./dist",
+        "outDir": "dist",
         "rootDir": "./",
         "baseUrl": "./",
         "paths": {

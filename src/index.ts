@@ -7,3 +7,6 @@ export * from './state_management';
 export * from './train';
 export * from './utils';
 export * from './val';
+export * from './types';
+
+

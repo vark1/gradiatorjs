@@ -1,6 +1,48 @@
 {
-  "dependencies": {
-    "typescript": "^5.6.3"
+  "name": "gradiatorjs",
+  "version": "0.1.0",
+  "description": "GradiatorJS is a lightweight, from-scratch autodiff engine and a neural network library written in typescript. Featuring a powerful automatic differentiation engine using a computation graph to enable backpropagation on dynamic network architectures. You can build, train and understand complex anything from deep neural nets to CNNs directly in Javascript",
+  "keywords": [
+    "neural-network",
+    "deep-learning",
+    "machine-learning",
+    "autodiff",
+    "automatic-differentiation",
+    "backpropagation",
+    "gradient-descent",
+    "cnn",
+    "convolutional-neural-network",
+    "typescript",
+    "javascript",
+    "browser",
+    "from-scratch",
+    "educational",
+    "lightweight"
+  ],
+  "homepage": "https://github.com/vark1/gradiatorjs#readme",
+  "bugs": {
+    "url": "https://github.com/vark1/gradiatorjs/issues"
   },
-  "type": "module"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vark1/gradiatorjs.git"
+  },
+  "license": "ISC",
+  "author": "Varun Kumar",
+  "type": "module",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
 }
