@@ -2,9 +2,8 @@ import { Val } from "./val.js";
 import { Sequential } from "./layers.js";
 import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "./accuracy.js";
-import { TrainingProgress } from "./js/types_and_interfaces/vis_interfaces.js";
+import { TrainingProgress, NetworkParams } from "./types.js";
 import { assert } from "./utils.js";
-import { NetworkParams } from "types_and_interfaces/general.js";
 
 function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: number, features: number) {
     const batchShape = [currentBatchSize, ...ogVal.shape.slice(1)];

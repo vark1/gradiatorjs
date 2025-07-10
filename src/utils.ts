@@ -1,5 +1,5 @@
 import { Val } from "./val.js";
-import { MinMaxInfo } from "./js/types_and_interfaces/general.js";
+import { MinMaxInfo } from "./types.js";
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {
