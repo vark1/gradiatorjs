@@ -132,23 +132,23 @@ export class Val{
         // Note: Only supports 2d arrays (for now)
         if(this.dim === 1) return this.clone(); // returning clone here for mutation issues
         assert(this.dim === 2, () => 'transpose only supports 2D arrays');
-        let newShape = [this.shape[1], this.shape[0]];
+        let newShape = [this.shape[1]!, this.shape[0]!];
         let res = new Val(newShape);
         let x = new Float64Array(this.size)
         let y = this.data
     
-        for (let i=0; i<this.shape[0]; i++) {
-            for (let j=0; j<this.shape[1]; j++) {
-                x[j*this.shape[0] + i] = y[i*this.shape[1] + j]
+        for (let i=0; i<this.shape[0]!; i++) {
+            for (let j=0; j<this.shape[1]!; j++) {
+                x[j*this.shape[0]! + i] = y[i*this.shape[1]! + j]
             }
         }
         res._data = x;
         res._prev = new Set([this]);
         res._backward = () => {
             // Transpose incoming gradient (res.grad) and accumulate it to the original tensor's grad (this.grad)
-            for(let i=0; i<this.shape[0]; i++) {
-                for(let j=0; j<this.shape[1]; j++) {
-                    this.grad[i*this.shape[1] + j] += res.grad[j*this.shape[0] + i];
+            for(let i=0; i<this.shape[0]!; i++) {
+                for(let j=0; j<this.shape[1]!; j++) {
+                    this.grad[i*this.shape[1]! + j]! += res.grad[j*this.shape[0]! + i]!;
                 }
             }
         };
@@ -180,7 +180,7 @@ export class Val{
 
             for (let i = 0; i < inputVal.grad.length; i++) {
                 if (i < result.grad.length) {
-                    inputVal.grad[i] += result.grad[i]; // Accumulate gradient onto the captured input Val's grad
+                    inputVal.grad[i]! += result.grad[i]!; // Accumulate gradient onto the captured input Val's grad
                 }
             }
         };

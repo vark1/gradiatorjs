@@ -1,7 +1,7 @@
 
-import { Val } from '../src/js/Val/val'
-import { gaussianRandom } from '../src/js/utils/utils_num';
-import * as op from '../src/js/Val/ops'
+import { Val } from '../src/val.js'
+import { gaussianRandom } from '../src/utils.js';
+import * as op from '../src/ops.js'
 
 test("Create scalar Val", () => {
   const a = new Val([], 5); // Scalar
@@ -107,7 +107,7 @@ describe('Val (Value Class)', () => {
     });
 
     test('transpose gradient propagation', () => {
-      const mat = new Val([2, 2], 0, true);
+      const mat = new Val([2, 2], 0);
       mat.data = [[1, 2], [3, 4]];
       const transposed = mat.T;
       
@@ -120,9 +120,9 @@ describe('Val (Value Class)', () => {
 
   describe('Autograd System', () => {
     test('backward propagates through computation graph', () => {
-      const a = new Val([], 2, true);
-      const b = new Val([], 3, true);
-      const c = new Val([], 4, true);
+      const a = new Val([], 2);
+      const b = new Val([], 3);
+      const c = new Val([], 4);
       const d = op.add(op.mul(a, b), c)  // d = a*b + c
 
       d.backward();
@@ -133,7 +133,7 @@ describe('Val (Value Class)', () => {
     });
 
     test('topological ordering handles complex graphs', () => {
-      const x = new Val([], 2, true);
+      const x = new Val([], 2);
       const y = op.mul(op.mul(x, x), x)// y = x³
       
       y.backward();
@@ -141,8 +141,8 @@ describe('Val (Value Class)', () => {
     });
 
     test('requiresGrad controls gradient computation', () => {
-      const a = new Val([], 1, false); // No grad
-      const b = new Val([], 2, true);
+      const a = new Val([], 1); // No grad
+      const b = new Val([], 2);
       const c = op.add(a, b);
       
       c.backward();
@@ -159,7 +159,6 @@ describe('Val (Value Class)', () => {
       const gradVal = v.gradVal();
       
       expect(gradVal.data).toEqual(new Float64Array([3, 4]));
-      expect(gradVal.requiresGrad).toBe(false);
     });
 
     test('randn initializes with normal distribution', () => {

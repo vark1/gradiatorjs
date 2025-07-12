@@ -80,22 +80,22 @@ export function dot(t1: Val, t2: Val) : Val {
         return sum(mul(t1, t2))
     }
 
-    const t1_ = t1.dim === 1 ? t1.reshape([1, t1.shape[0]]) : t1;
-    const t2_ = t2.dim === 1 ? t2.reshape([t2.shape[0], 1]) : t2;
+    const t1_ = t1.dim === 1 ? t1.reshape([1, t1.shape[0]!]) : t1;
+    const t2_ = t2.dim === 1 ? t2.reshape([t2.shape[0]!, 1]) : t2;
 
     assert(t1_.shape[1] === t2_.shape[0], ()=> `In dot: inner dimensions didn't match. dimensioins got: ${t1.shape} and ${t2.shape}`)
 
-    const out_shape = [t1_.shape[0], t2_.shape[1]];
-    const out_size = out_shape[0] * out_shape[1];
+    const out_shape = [t1_.shape[0]!, t2_.shape[1]!];
+    const out_size = out_shape[0]! * out_shape[1]!;
     const res_data = new Float64Array(out_size);
 
-    for (let i=0; i<t1_.shape[0]; i++) {
-        for (let j=0; j<t2_.shape[1]; j++) {
+    for (let i=0; i<t1_.shape[0]!; i++) {
+        for (let j=0; j<t2_.shape[1]!; j++) {
             let sum=0;
-            for(let k=0; k<t1_.shape[1]; k++) {
-                sum += t1_.data[i*t1_.shape[1] + k] * t2_.data[k*t2_.shape[1] + j]
+            for(let k=0; k<t1_.shape[1]!; k++) {
+                sum += t1_.data[i*t1_.shape[1]! + k] * t2_.data[k*t2_.shape[1]! + j]
             }
-            res_data[i * out_shape[1] + j] = sum;
+            res_data[i * out_shape[1]! + j] = sum;
         }
     }
 
@@ -126,7 +126,7 @@ export function pow(t: Val, num: number) : Val {
     out.data = t.data.map((k:number) => k ** num)
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g + (num * t.data[i]**(num-1)) * out.grad[i]);
+        t.grad = t.grad.map((g, i) => g + (num * t.data[i]**(num-1)) * out.grad[i]!);
     }
     return out;
 }
@@ -136,7 +136,7 @@ export function div(t: Val, num: number) : Val {
     out.data = t.data.map((k:number) => k / num)
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g + (out.grad[i] / num));
+        t.grad = t.grad.map((g, i) => g + (out.grad[i]! / num));
     }
     return out;
 }
@@ -151,9 +151,9 @@ export function divElementWise(t1: Val, t2: Val) : Val {
     out._prev = new Set([t1, t2])
     out._backward = () => {
         // dL/dt1 = dL/dout * d(t1/t2)/dt1 = dL/dout * (1/t2)
-        t1.grad = t1.grad.map((g, i) => g + (1/t2.data[i]) * out.grad[i]);
+        t1.grad = t1.grad.map((g, i) => g + (1/t2.data[i]) * out.grad[i]!);
         // dL/dt2 = dL/dout * d(t1/t2)/dt2 = dL/dout * (-t1 / t2^2)
-        t2.grad = t2.grad.map((g, i) => g + (-t1.data[i]/t2.data[i]**2) * out.grad[i]);
+        t2.grad = t2.grad.map((g, i) => g + (-t1.data[i]/t2.data[i]**2) * out.grad[i]!);
     }
     return out;
 }
@@ -163,7 +163,7 @@ export function negate(t: Val) : Val {
     out.data = t.data.map((k:number) => -k)
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g - out.grad[i]);
+        t.grad = t.grad.map((g, i) => g - out.grad[i]!);
     }
     return out;
 }
@@ -173,7 +173,7 @@ export function abs(t: Val) : Val {
     out.data = t.data.map((k:number) => Math.abs(k))
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g + (t.data[i] > 0 ? 1 : -1) * out.grad[i]);
+        t.grad = t.grad.map((g, i) => g + (t.data[i] > 0 ? 1 : -1) * out.grad[i]!);
     }
     return out;
 }
@@ -183,7 +183,7 @@ export function exp(t: Val) : Val {
     out.data = t.data.map((k:number) => Math.exp(k))
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g + out.data[i] * out.grad[i]);
+        t.grad = t.grad.map((g, i) => g + out.data[i] * out.grad[i]!);
     }
     return out;
 }
@@ -195,7 +195,7 @@ export function log(t: Val) : Val {
     out.data = t.data.map((k:number) => Math.log(k))
     out._prev = new Set([t])
     out._backward = () => {
-        t.grad = t.grad.map((g, i) => g + (1/t.data[i]) * out.grad[i]);
+        t.grad = t.grad.map((g, i) => g + (1/t.data[i]) * out.grad[i]!);
     }
     return out;
 }
@@ -207,7 +207,7 @@ export function sum(t: Val, axis?: number, keepdims = false): Val {
         out.data[0] = t.data.reduce((a: number, c: number) => a + c, 0);
         out._prev = new Set([t]);
         out._backward = () => {
-            t.grad = t.grad.map(g => g + out.grad[0]);
+            t.grad = t.grad.map(g => g + out.grad[0]!);
         };
         return out;
     }
@@ -223,8 +223,8 @@ export function sum(t: Val, axis?: number, keepdims = false): Val {
     // Forward pass (compute sums)
     for (let i = 0; i < out.size; i++) {
         let sum = 0;
-        for (let j = 0; j < t.shape[axis]; j++) {
-            const idx = Math.floor(i / stride) * t.shape[axis] * stride + 
+        for (let j = 0; j < t.shape[axis]!; j++) {
+            const idx = Math.floor(i / stride) * t.shape[axis]! * stride + 
                         j * stride + 
                         i % stride;
             sum += t.data[idx];
@@ -236,11 +236,11 @@ export function sum(t: Val, axis?: number, keepdims = false): Val {
     out._prev = new Set([t]);
     out._backward = () => {
         for (let i = 0; i < out.size; i++) {
-            for (let j = 0; j < t.shape[axis]; j++) {
-                const idx = Math.floor(i / stride) * t.shape[axis] * stride + 
+            for (let j = 0; j < t.shape[axis]!; j++) {
+                const idx = Math.floor(i / stride) * t.shape[axis]! * stride + 
                             j * stride + 
                             i % stride;
-                t.grad[idx] += out.grad[i];
+                t.grad[idx]! += out.grad[i]!;
             }
         }
     };
@@ -252,7 +252,7 @@ export function mean(t: Val, axis?: number, keepdims = false) : Val {
     const N = axis === undefined ? t.size : t.shape[axis];
     const sum_val = sum(t, axis, keepdims);
 
-    const out = div(sum_val, N);
+    const out = div(sum_val, N!);
     out._prev = new Set([t]);
 
     return out;
@@ -273,12 +273,12 @@ export function conv2d(X: Val, F: Val, st: number=1, pad: number=0) {
     assert(st > 0 && Number.isInteger(st), () => `conv2d: stride must be > 0`)
     assert(pad >= 0 && Number.isInteger(pad), () => `conv2d: padding must be >= 0`)
 
-    const batch_size = X.shape[0];
-    const H = X.shape[1];
-    const W = X.shape[2];
-    const C_IN = X.shape[3];
-    const C_OUT = F.shape[0];
-    const FS = F.shape[1];      // filter size
+    const batch_size = X.shape[0]!;
+    const H = X.shape[1]!;
+    const W = X.shape[2]!;
+    const C_IN = X.shape[3]!;
+    const C_OUT = F.shape[0]!;
+    const FS = F.shape[1]!;      // filter size
 
     // output dims
     const H_OUT = Math.floor((H - FS + 2*pad)/st) + 1;
@@ -374,12 +374,12 @@ export function conv2d(X: Val, F: Val, st: number=1, pad: number=0) {
                                     
                                     // dL/dW += dL/dOut * dOut/dW = dL/dOut * X
                                     if (w_idx < F.grad.length) {
-                                        F.grad[w_idx] += X.data[x_idx] * grad_val;
+                                        F.grad[w_idx]! += X.data[x_idx] * grad_val!;
                                     }
 
                                     // dL/dX += dL/dOut * dOut/dX = dL/dOut * W
                                     if (x_idx < X.grad.length) {
-                                        X.grad[x_idx] += F.data[w_idx] * grad_val;
+                                        X.grad[x_idx]! += F.data[w_idx] * grad_val!;
                                     }
                                 }
                             }
@@ -397,10 +397,10 @@ export function maxPool2d(X: Val, pool_size: number, stride: number) {
     assert(pool_size > 0 && Number.isInteger(pool_size), () => "pool_size must be a positive integer.");
     assert(stride > 0 && Number.isInteger(stride), () => "stride must be a positive integer.");
 
-    const B = X.shape[0];
-    const H_in = X.shape[1];
-    const W_in = X.shape[2];
-    const C = X.shape[3];
+    const B = X.shape[0]!;
+    const H_in = X.shape[1]!;
+    const W_in = X.shape[2]!;
+    const C = X.shape[3]!;
     const H_out = Math.floor((H_in-pool_size)/stride)+1;
     const W_out = Math.floor((W_in-pool_size)/stride)+1;
 
@@ -451,9 +451,9 @@ export function maxPool2d(X: Val, pool_size: number, stride: number) {
         for (let i = 0; i < Y.grad.length; i++) {
             // Y.grad[i] = dL/dY_flat[i]
             // argmax_indices[i] is the flat index in X.data that contributed to Y_flat[i]
-            const x_idx_to_update = argmax_indices[i];
+            const x_idx_to_update = argmax_indices[i]!;
             if (x_idx_to_update !== -1) {
-                X.grad[x_idx_to_update] += Y.grad[i]; // only add gradient to the max value's og position
+                X.grad[x_idx_to_update]! += Y.grad[i]!; // only add gradient to the max value's og position
             }
         }
     };

@@ -8,7 +8,7 @@ export function relu (Z: Val) : Val{
     out._prev = new Set([Z]);
     out._backward = () => {
         for(let i=0; i<Z.size; ++i) {
-            Z.grad[i] += (Z.data[i] > 0 ? out.grad[i] : 0);
+            Z.grad[i]! += (Z.data[i] > 0 ? out.grad[i] : 0)!;
         }
     }
     return out
@@ -21,7 +21,7 @@ export function sigmoid (Z: Val) : Val {
     out._prev = new Set([Z]);
     out._backward = () => {
         for (let i=0; i<Z.size; ++i) {
-            Z.grad[i] += out.data[i] * (1-out.data[i]) * out.grad[i];
+            Z.grad[i]! += out.data[i] * (1-out.data[i]) * out.grad[i]!;
         }
     }
     return out;
@@ -34,7 +34,7 @@ export function tanh (Z: Val) : Val{
     out._prev = new Set([Z]);
     out._backward = () => {
         for (let i=0; i<Z.size; ++i) {
-            Z.grad[i] += (1 - out.data[i] * out.data[i]) * out.grad[i];
+            Z.grad[i]! += (1 - out.data[i] * out.data[i]) * out.grad[i]!;
         }
     }
     return out

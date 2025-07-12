@@ -65,11 +65,11 @@ export class Dense extends Module {
         this.activation = activation;
     }
 
-    forward(X_input: Val) : Val {
+    override forward(X_input: Val) : Val {
         let X = X_input;    // X.shape = [batchsize, nin]
         
         if (X_input.dim === 1) {    // X should be either 1D or 2D
-            X = X.reshape([1, X.shape[0]]);     // reshaping [nin] to [1, nin]
+            X = X.reshape([1, X.shape[0]!]);     // reshaping [nin] to [1, nin]
         }
         assert (X.dim === 2, ()=> `Dense layer expects dim 1 or 2, got ${X_input.dim}`)
         assert(X.shape[1] === this.nin, ()=>`Input features ${X.shape[1]} don't match layer input size ${this.nin}`);
@@ -82,7 +82,7 @@ export class Dense extends Module {
         return A;
     }
 
-    toJSON(): any {
+    override toJSON(): any {
         return {
             layerType: 'Dense',
             nin: this.nin,
@@ -116,7 +116,7 @@ export class Conv extends Module {
         this.biases = new Val([out_channels], 0.1);
     }
 
-    forward(X_input: Val): Val {
+    override forward(X_input: Val): Val {
         let X = X_input;
 
         assert(X.dim === 4, ()=> `Conv2DLayer: Input must be 4D. got ${X.dim} dims with shape : ${X.shape}`);
@@ -126,9 +126,9 @@ export class Conv extends Module {
         const Z_conv = op.conv2d(X, this.kernel, this.stride, this.padding);
 
         // TODO: manually adding bias here instead of using op.add because broadcasting is not yet available for 4D arrays
-        const B_batch = X.shape[0];
-        const H_out = Z_conv.shape[1];
-        const W_out = Z_conv.shape[2];
+        const B_batch = X.shape[0]!;
+        const H_out = Z_conv.shape[1]!;
+        const W_out = Z_conv.shape[2]!;
 
         const Z_with_bias = new Val([B_batch, H_out, W_out, this.out_channels]);
         
@@ -148,7 +148,7 @@ export class Conv extends Module {
         Z_with_bias._backward = () => {
             if (!Z_conv.grad || Z_conv.grad.length !== Z_conv.size) Z_conv.grad = new Float64Array(Z_conv.size).fill(0);
             for (let i = 0; i < Z_with_bias.grad.length; i++) {
-                Z_conv.grad[i] += Z_with_bias.grad[i];
+                Z_conv.grad[i]! += Z_with_bias.grad[i]!;
             }
 
             // Propagate gradient to biases: dL/dBias_c = sum(dL/dZ_with_bias over b, h, w for channel c)
@@ -159,7 +159,7 @@ export class Conv extends Module {
                     for (let w = 0; w < W_out; w++) {
                         for (let c = 0; c < this.out_channels; c++) {
                             const z_with_bias_grad_idx = b*(H_out*W_out*this.out_channels) + h*(W_out*this.out_channels) + w*this.out_channels + c;
-                            this.biases.grad[c] += Z_with_bias.grad[z_with_bias_grad_idx];
+                            this.biases.grad[c]! += Z_with_bias.grad[z_with_bias_grad_idx]!;
                         }
                     }
                 }
@@ -172,7 +172,7 @@ export class Conv extends Module {
         return A;
     }
 
-    toJSON(): any {
+    override toJSON(): any {
         return {
             layerType: 'Conv2D',
             in_channels: this.in_channels,
@@ -188,13 +188,13 @@ export class Conv extends Module {
 }
 
 export class Flatten extends Module {
-    forward(X: Val): Val {
+    override forward(X: Val): Val {
         assert(X.dim > 1, ()=>`FlattenLayer expects input with at least 2 dimensions.`);
         if (X.dim === 2) {
             this.last_Z = X; this.last_A = X; return X;
         }
 
-        const batchSize = X.shape[0];
+        const batchSize = X.shape[0]!;
         const features = X.size / batchSize;
         const Y = X.reshape([batchSize, features]);
 
@@ -203,7 +203,7 @@ export class Flatten extends Module {
         return Y;
     }
 
-    toJSON(): any {
+    override toJSON(): any {
         return {
             layerType: 'Flatten'
         };
@@ -220,14 +220,14 @@ export class MaxPool2D extends Module {
         this.stride = stride ?? pool_size;
     }
 
-    forward(X: Val) : Val {
+    override forward(X: Val) : Val {
         const Y = op.maxPool2d(X, this.pool_size, this.stride);        
         this.last_Z = Y;
         this.last_A = Y;
         return Y;
     }
 
-    toJSON(): any {
+    override toJSON(): any {
         return {
             layerType: 'MaxPooling2D',
             pool_size: this.pool_size,
@@ -244,7 +244,7 @@ export class Sequential extends Module {
         this.layers = layers;
     }
 
-    forward(X: Val) : Val {
+    override forward(X: Val) : Val {
         let currentOutput = X;
         for (const layer of this.layers) {
             currentOutput = layer.forward(currentOutput);
@@ -264,7 +264,7 @@ export class Sequential extends Module {
         return outputs;
     }
 
-    toJSON(): any {
+    override toJSON(): any {
         const modelJSON = {
             modelType: 'Sequential',
             layers: this.layers.map(layer => layer.toJSON())

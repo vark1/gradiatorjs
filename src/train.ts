@@ -2,7 +2,7 @@ import { Val } from "./val.js";
 import { Sequential } from "./layers.js";
 import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "./accuracy.js";
-import { TrainingProgress, NetworkParams } from "./types.js";
+import type { TrainingProgress, NetworkParams } from "./types.js";
 import { assert } from "./utils.js";
 
 function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: number, features: number) {
@@ -10,7 +10,7 @@ function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: nu
     const batchVal = new Val(batchShape);
 
     for (let k=0; k<currentBatchSize; k++) {
-        const ogIdx = batchIndices[k];
+        const ogIdx = batchIndices[k]!;
         const sourceOffset = ogIdx*features;
         const destOffset = k*features;
         batchVal.data.set(ogVal.data.subarray(sourceOffset, sourceOffset+features), destOffset);
@@ -20,13 +20,13 @@ function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: nu
 
 // generator that will yield mini-batches from the full dataset 
 function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = true){
-    const numSamples = X.shape[0]
+    const numSamples = X.shape[0]!;
     const indices = Array.from({ length: numSamples }, (_, i) => i);
 
     if (shuffle) {
         for (let i=indices.length-1; i>0; i--) {
             const j=Math.floor(Math.random()*(i+1));
-            [indices[i], indices[j]] = [indices[j], indices[i]];
+            [indices[i], indices[j]] = [indices[j]!, indices[i]!];
         }
     }
 
@@ -108,7 +108,7 @@ export async function trainModel(
 
                     for (let j=0; j<p.data.length; j++) {
                         if (j < p.grad.length) {
-                            p.data[j] -= l_rate * p.grad[j];
+                            p.data[j] -= l_rate * p.grad[j]!;
                         }
                     }
                 }
@@ -124,10 +124,10 @@ export async function trainModel(
                     assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
 
                     const sampleX = new Val(batch.x.shape.slice(1)).reshape([1, ...batch.x.shape.slice(1)]);
-                    sampleX.data = batch.x.data.slice(0, batch.x.size / batch.x.shape[0]);
+                    sampleX.data = batch.x.data.slice(0, batch.x.size / batch.x.shape[0]!);
 
                     let sampleY_label = -1;
-                    const y_features = batch.y.size / batch.y.shape[0];
+                    const y_features = batch.y.size / batch.y.shape[0]!;
                     if (y_features === 1) { // If label is a single number
                         sampleY_label = batch.y.data[0];
                     } else { // If label is one-hot encoded

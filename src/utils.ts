@@ -1,5 +1,5 @@
 import { Val } from "./val.js";
-import { MinMaxInfo } from "./types.js";
+import type { MinMaxInfo } from "./types.js";
 
 export function assert(expr: boolean, msg: () => string) {
     if (!expr) {
@@ -71,45 +71,45 @@ export function broadcast(t1: Val | number, t2: Val | number): [Val, Val] {
         let needs_v2_broadcast = false;
 
         // [M, 1] and [M, N] -> broadcast v1 to [M, N]
-        if (v1.shape[0] === v2.shape[0] && v1.shape[1] === 1 && v2.shape[1] > 1) {
+        if (v1.shape[0] === v2.shape[0] && v1.shape[1] === 1 && v2.shape[1]! > 1) {
             target_shape = v2.shape;
             broadcasted_data = new Float64Array(v2.size);
-            for (let r = 0; r < target_shape[0]; r++) {
-                for (let c = 0; c < target_shape[1]; c++) {
-                    broadcasted_data[r * target_shape[1] + c] = v1.data[r];
+            for (let r = 0; r < target_shape[0]!; r++) {
+                for (let c = 0; c < target_shape[1]!; c++) {
+                    broadcasted_data[r * target_shape[1]! + c] = v1.data[r];
                 }
             }
             needs_v1_broadcast = true;
         }
         // [M, N] and [M, 1] -> broadcast v2 to [M, N]
-        else if (v1.shape[0] === v2.shape[0] && v2.shape[1] === 1 && v1.shape[1] > 1) {
+        else if (v1.shape[0] === v2.shape[0] && v2.shape[1] === 1 && v1.shape[1]! > 1) {
             target_shape = v1.shape;
             broadcasted_data = new Float64Array(v1.size);
-            for (let r = 0; r < target_shape[0]; r++) {
-                for (let c = 0; c < target_shape[1]; c++) {
-                    broadcasted_data[r * target_shape[1] + c] = v2.data[r];
+            for (let r = 0; r < target_shape[0]!; r++) {
+                for (let c = 0; c < target_shape[1]!; c++) {
+                    broadcasted_data[r * target_shape[1]! + c] = v2.data[r];
                 }
             }
             needs_v2_broadcast = true;
         }
         // [1, N] and [M, N] -> broadcast v1 to [M, N]
-        else if (v1.shape[1] === v2.shape[1] && v1.shape[0] === 1 && v2.shape[0] > 1) {
+        else if (v1.shape[1] === v2.shape[1] && v1.shape[0] === 1 && v2.shape[0]! > 1) {
             target_shape = v2.shape;
             broadcasted_data = new Float64Array(v2.size);
-            for (let r = 0; r < target_shape[0]; r++) {
-                for (let c = 0; c < target_shape[1]; c++) {
-                    broadcasted_data[r * target_shape[1] + c] = v1.data[c];
+            for (let r = 0; r < target_shape[0]!; r++) {
+                for (let c = 0; c < target_shape[1]!; c++) {
+                    broadcasted_data[r * target_shape[1]! + c] = v1.data[c];
                 }
             }
             needs_v1_broadcast = true;
         }
         // [M, N] and [1, N] -> broadcast v2 to [M, N]
-        else if (v1.shape[1] === v2.shape[1] && v2.shape[0] === 1 && v1.shape[0] > 1) {
+        else if (v1.shape[1] === v2.shape[1] && v2.shape[0] === 1 && v1.shape[0]! > 1) {
             target_shape = v1.shape;
             broadcasted_data = new Float64Array(v1.size);
-            for (let r = 0; r < target_shape[0]; r++) {
-                for (let c = 0; c < target_shape[1]; c++) {
-                    broadcasted_data[r * target_shape[1] + c] = v2.data[c];
+            for (let r = 0; r < target_shape[0]!; r++) {
+                for (let c = 0; c < target_shape[1]!; c++) {
+                    broadcasted_data[r * target_shape[1]! + c] = v2.data[c];
                 }
             }
             needs_v2_broadcast = true;
@@ -151,7 +151,7 @@ export function reduceGradient(
     if (originalShape.length === 0 || originalShape.length === 1) {
         let sum = 0;
         for (let i = 0; i < gradient.length; i++) {
-            sum += gradient[i];
+            sum += gradient[i]!;
         }
         return new Float64Array([sum]);
     }
@@ -164,32 +164,32 @@ export function reduceGradient(
         const [origRows, origCols] = originalShape;
         const [bcastRows, bcastCols] = broadcastedShape;
 
-        const reduceCols = origCols === 1 && bcastCols > 1; // sum along axis 1 ([M, 1] -> [M, N])
-        const reduceRows = origRows === 1 && bcastRows > 1; // Sum along axis 0 ([1, N] -> [M, N])
+        const reduceCols = origCols === 1 && bcastCols! > 1; // sum along axis 1 ([M, 1] -> [M, N])
+        const reduceRows = origRows === 1 && bcastRows! > 1; // Sum along axis 0 ([1, N] -> [M, N])
 
         if (reduceCols && reduceRows) {
         // [1, 1] -> [M, N], treat as scalar reduction
         let sum = 0;
         for (let i = 0; i < gradient.length; i++) {
-            sum += gradient[i];
+            sum += gradient[i]!;
         }
         if (reducedGrad.length === 1) 
             reducedGrad[0] = sum;
         } else if (reduceCols && !reduceRows) {
             // [M, 1] -> [M, N], sum along axis 1 (cols)
-            for (let r = 0; r < bcastRows; r++) {
+            for (let r = 0; r < bcastRows!; r++) {
                 let sum = 0;
-                for (let c = 0; c < bcastCols; c++) {
-                    sum += gradient[r * bcastCols + c];
+                for (let c = 0; c < bcastCols!; c++) {
+                    sum += gradient[r * bcastCols! + c]!;
                 }
                 if (r < reducedGrad.length) reducedGrad[r] = sum;
             }
         } else if (reduceRows && !reduceCols) {
             // [1, N] -> [M, N], sum along axis 0 (rows)
-            for (let c = 0; c < bcastCols; c++) {
+            for (let c = 0; c < bcastCols!; c++) {
                 let sum = 0;
-                for (let r = 0; r < bcastRows; r++) {
-                    sum += gradient[r * bcastCols + c];
+                for (let r = 0; r < bcastRows!; r++) {
+                    sum += gradient[r * bcastCols! + c]!;
                 }
                 if (c < reducedGrad.length) reducedGrad[c] = sum;
             }
@@ -213,11 +213,11 @@ export function calculateMinMax(data: Float64Array): MinMaxInfo {
     if (!data || data.length === 0) {
         return { minv: 0, maxv: 0, dv: 0 };
     }
-    let minv = data[0];
-    let maxv = data[0];
+    let minv = data[0]!;
+    let maxv = data[0]!;
     for (let i = 1; i < data.length; i++) {
-        if (data[i] < minv) minv = data[i];
-        if (data[i] > maxv) maxv = data[i];
+        if (data[i]! < minv!) minv = data[i]!;
+        if (data[i]! > maxv!) maxv = data[i]!;
     }
     return { minv, maxv, dv: maxv - minv };
 }

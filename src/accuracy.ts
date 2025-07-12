@@ -17,9 +17,9 @@ export function calcBinaryAccuracy(y_pred_val: Val, y_true_val: Val, threshold: 
     let correct_predictions = 0;
 
     for (let i=0; i<n_samples; i++) {
-        const predicted_class = y_pred[i] > threshold ? 1:0;
+        const predicted_class = y_pred[i]! > threshold ? 1:0;
 
-        const true_label = Math.round(y_true[i]);
+        const true_label = Math.round(y_true[i]!);
 
         if (predicted_class === true_label) {
             correct_predictions++;
@@ -35,8 +35,8 @@ export function calcMultiClassAccuracy(y_pred_val: Val, y_true_val: Val) {
         throw new Error(`Shape mismatch for multi-class accuracy. Pred: [${y_pred_val.shape.join(',')}], True: [${y_true_val.shape.join(',')}]`);
     }
     
-    const batchSize = y_pred_val.shape[0];
-    const numClasses = y_pred_val.shape[1];
+    const batchSize = y_pred_val.shape[0]!;
+    const numClasses = y_pred_val.shape[1]!;
 
     if (batchSize === 0) {
         console.log("Empty input");
@@ -56,8 +56,9 @@ export function calcMultiClassAccuracy(y_pred_val: Val, y_true_val: Val) {
         
         // argmax
         for (let j=0; j<numClasses; j++) {
-            if (y_pred[predOffset+j]>maxProb) {
-                maxProb = y_pred[predOffset+j];
+            let val = y_pred[predOffset+j]!;
+            if (val>maxProb) {
+                maxProb = val;
                 predicted_class = j;
             }
         }

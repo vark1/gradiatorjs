@@ -48,8 +48,8 @@ export function crossEntropyLoss_softmax(logits: Val, y_true: Val): Val {
         throw new Error(`Shape mismatch for softmax `)
     }
 
-    const batchSize = logits.shape[0];
-    const numClasses = logits.shape[1];
+    const batchSize = logits.shape[0]!;
+    const numClasses = logits.shape[1]!;
 
     // applying softmax to get probs (P)
     const probs = new Val([batchSize, numClasses]);
@@ -96,7 +96,7 @@ export function crossEntropyLoss_softmax(logits: Val, y_true: Val): Val {
             logits.grad = new Float64Array(logits.size).fill(0);
         }
         for (let i=0; i<logits.size; i++) {
-            logits.grad[i] += dL_dLogits[i];
+            logits.grad[i]! += dL_dLogits[i]!;
         }
     };
     return lossVal;

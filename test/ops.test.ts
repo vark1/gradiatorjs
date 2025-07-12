@@ -1,6 +1,7 @@
-import { assert } from "../src/js/utils/utils"
-import { dot, broadcast } from "../src/js/Val/ops"
-import { Val } from "../src/js/Val/val"
+import { assert } from "../src/utils.js"
+import { dot } from "../src/ops.js"
+import { broadcast } from "../src/utils.js"
+import { Val } from "../src/val.js"
 
 function broadcastTEST() {
     //TODO
