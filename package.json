@@ -1,6 +1,6 @@
 {
   "name": "gradiatorjs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GradiatorJS is a lightweight, from-scratch autodiff engine and a neural network library written in typescript. Featuring a powerful automatic differentiation engine using a computation graph to enable backpropagation on dynamic network architectures. You can build, train and understand complex anything from deep neural nets to CNNs directly in Javascript",
   "keywords": [
     "neural-network",

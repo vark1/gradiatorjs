@@ -1,7 +1,5 @@
 # GradiatorJS
 
-
-
 GradiatorJS is a lightweight, from-scratch neural network library built in typescript which you can use to create and train deep neural nets directly in your browser. It is an autodiff engine with backpropagation which is implemented over a dynamically build DAG i.e. the library will automatically compute the gradients of all parameters with respect to a final output (like a loss fn). This allows you to define dynamic neural nets (including Fully Connected and Convolutional Neural Networks), train these networks on custom datasets using mini-batch gradient descent etc etc.
 
 This project is done with a pedagogical intention in mind (to help concepts feel intuitive and easy to understand). You can use this library in your own projects using the npm package. 
@@ -37,36 +35,36 @@ npm install gradiatorjs
 ### Creating a binary classification network
 
 ```typescript
-import { Sequential, Dense, Flatten, relu, sigmoid, crossEntropyLoss_binary } from 'gradiatorjs';
+import {layer, act, loss, model} from 'gradiatorjs';
 
-const model = new Sequential(
+const model = new model.Sequential(
     // Assuming an input shape of [batch, 64, 64, 3] for cat images
-    new Flatten(),
-    new Dense(12288, 20, relu),
-    new Dense(20, 7, relu),
-    new Dense(7, 5, relu),
-    new Dense(5, 1, sigmoid)
+    new layer.Flatten(),
+    new layer.Dense(12288, 20, act.relu),
+    new layer.Dense(20, 7, act.relu),
+    new layer.Dense(7, 5, act.relu),
+    new layer.Dense(5, 1, act.sigmoid)
 );
 
-const loss = crossEntropyLoss_binary(predictions, true_labels);
+const loss = loss.crossEntropyLoss_binary(predictions, true_labels);
 ```
 
 ### Creating a Convolutional Network
 
 ```typescript
-import { Sequential, Dense, Conv2D, MaxPooling2D, Flatten, relu, softmaxCrossEntropyLoss } from 'gradiatorjs';
+import { layer, act, loss, model } from 'gradiatorjs';
 
-const model = new Sequential(
+const model = new model.Sequential(
     // Assuming an input shape of [batch, 28, 28, 1] for a dataset like MNIST
-    new Conv(1, 6, 5, 1, 0, relu), // in_channels, out_channels, kernel, stride, padding, activation
-    new MaxPooling2D(2, 2),
-    new Conv(6, 16, 5, 1, 0, relu),
-    new MaxPooling2D(2, 2),
-    new Flatten(),
-    new Dense(256, 120, relu),
-    new Dense(120, 84, relu),
-    new Dense(84, 10)
+    new layer.Conv(1, 6, 5, 1, 0, act.relu), // in_channels, out_channels, kernel, stride, padding, activation
+    new layer.MaxPool2D(2, 2),
+    new layer.Conv(6, 16, 5, 1, 0, act.relu),
+    new layer.MaxPool2D(2, 2),
+    new layer.Flatten(),
+    new layer.Dense(256, 120, act.relu),
+    new layer.Dense(120, 84, act.relu),
+    new layer.Dense(84, 10)
 );
 
-const loss = softmaxCrossEntropyLoss(logits, one_hot_labels);
+const loss = loss.crossEntropyLoss_softmax(logits, one_hot_labels);
 ```
