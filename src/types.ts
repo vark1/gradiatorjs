@@ -29,3 +29,7 @@ export interface TrainingProgress{
         layerOutputs: { Z: Val | null; A: Val | null; }[];
     }
 }
+
+export interface Messenger {
+    postMessage(data: any, transfer?: Transferable[]): void;
+}

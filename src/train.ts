@@ -2,7 +2,7 @@ import { Val } from "./val.js";
 import { Sequential } from "./model.js";
 import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "./accuracy.js";
-import type { TrainingProgress, NetworkParams } from "./types.js";
+import type { NetworkParams, Messenger } from "./types.js";
 import { assert } from "./utils.js";
 
 function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: number, features: number) {
@@ -44,14 +44,27 @@ function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = tru
     }
 }
 
+function getActSample(batch: {x: Val, y: Val}): [Val, number] {
+    const sampleX = new Val(batch.x.shape.slice(1)).reshape([1, ...batch.x.shape.slice(1)]);
+    sampleX.data = batch.x.data.slice(0, batch.x.size / batch.x.shape[0]!);
+
+    let sampleY_label = -1;
+    const y_features = batch.y.size / batch.y.shape[0]!;
+    if (y_features === 1) { // If label is a single number
+        sampleY_label = batch.y.data[0];
+    } else { // If label is one-hot encoded
+        const y_sample_data = batch.y.data.slice(0, y_features);
+        sampleY_label = y_sample_data.indexOf(1);
+    }
+    return [sampleX, sampleY_label];
+}
+
 export async function trainModel(
     model: Sequential, 
     X_train: Val, 
     Y_train: Val, 
     params: NetworkParams,
-    callbacks?: {
-        onBatchEnd?: (progress: TrainingProgress) => void;
-    }
+    messenger?: Messenger,
 ) : Promise<void> {
 
     const {loss_fn, l_rate, epochs, batch_size, multiClass} = params
@@ -117,36 +130,44 @@ export async function trainModel(
                 const iterTime = iterEndTime - iterStartTime;
                 totalProcessingTime += iterTime;
                 iteration++;
-
-                if(callbacks?.onBatchEnd) {
+                if (messenger) {
+                    assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
                     let accuracy = multiClass ? calcMultiClassAccuracy(Y_pred, Y_batch) : calcBinaryAccuracy(Y_pred, Y_batch);
 
-                    assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
+                    const [sampleX, sampleY_label] = getActSample(batch);
+                    
+                    const rawLayerOutputs = model.getLayerOutputs(sampleX).map(val => ({
+                        Zdata: val['Z']?.data.buffer,
+                        Zshape: val['Z']?.shape,
+                        Adata: val['A']?.data.buffer,
+                        Ashape: val['A']?.shape
+                    }));
 
-                    const sampleX = new Val(batch.x.shape.slice(1)).reshape([1, ...batch.x.shape.slice(1)]);
-                    sampleX.data = batch.x.data.slice(0, batch.x.size / batch.x.shape[0]!);
+                    const transferableBuffersSet = new Set<ArrayBuffer>();
+                    rawLayerOutputs.forEach(layer => {
+                        if (layer.Zdata) transferableBuffersSet.add(layer.Zdata);
+                        if (layer.Adata) transferableBuffersSet.add(layer.Adata);
+                    });
+                    transferableBuffersSet.add(sampleX.data.buffer);
 
-                    let sampleY_label = -1;
-                    const y_features = batch.y.size / batch.y.shape[0]!;
-                    if (y_features === 1) { // If label is a single number
-                        sampleY_label = batch.y.data[0];
-                    } else { // If label is one-hot encoded
-                        const y_sample_data = batch.y.data.slice(0, y_features);
-                        sampleY_label = y_sample_data.indexOf(1);
-                    }
+                    const transferableBuffers = Array.from(transferableBuffersSet);
 
-                    callbacks.onBatchEnd({
+                    messenger.postMessage({
+                        type: 'batchEnd',
                         epoch: e,
-                        batch_idx: batch_idx,
+                        batch_idx: iteration,
                         loss: loss.data[0],
                         accuracy: accuracy,
                         iterTime: iterTime,
                         visData: {
-                            sampleX: sampleX,
+                            sampleX: {
+                                data: sampleX.data.buffer,
+                                shape: sampleX.shape
+                            },
                             sampleY_label: sampleY_label,
-                            layerOutputs: model.getLayerOutputs(sampleX)
+                            layerOutputs: rawLayerOutputs
                         }
-                    });
+                    }, transferableBuffers);
                 }
                 batch_idx++;
             }
