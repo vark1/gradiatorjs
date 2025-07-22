@@ -1,6 +1,6 @@
 import { Val } from "./val.js";
 import { Sequential } from "./model.js";
-import { getStopTraining, endTraining, getIsPaused } from "./state_management.js";
+import { getStopTraining, endTraining, getIsPaused, getTrainingContext, advanceEpoch } from "./state_management.js";
 import { calcBinaryAccuracy, calcMultiClassAccuracy } from "./accuracy.js";
 import type { NetworkParams, Messenger } from "./types.js";
 import { assert } from "./utils.js";
@@ -19,7 +19,7 @@ function createBatchVal(ogVal: Val, batchIndices: number[], currentBatchSize: nu
 }
 
 // generator that will yield mini-batches from the full dataset 
-function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = true){
+export function* getMiniBatch(X: Val, Y: Val, batchSize: number, shuffle: boolean = true){
     const numSamples = X.shape[0]!;
     const indices = Array.from({ length: numSamples }, (_, i) => i);
 
@@ -184,4 +184,103 @@ export async function trainModel(
     } finally {
         endTraining();
     }
+}
+
+export async function trainSingleBatch(messenger: Messenger): Promise<void> {
+    const {model, X_train, Y_train, params, currentEpoch, batchGenerator, iteration} = getTrainingContext();
+
+    if (getStopTraining()) {
+        endTraining();
+        messenger.postMessage({type: 'complete', reason: 'stopped by user'});
+        return;
+    }
+    if (getIsPaused() || !model || !batchGenerator || !params) {
+        return;
+    }
+
+    const iterStartTime = performance.now();
+    const batchResult = batchGenerator.next();
+
+    if (batchResult.done) {
+        if(advanceEpoch()) {
+            messenger.postMessage({type: 'epochEnd', epoch: currentEpoch});
+        } else {
+            messenger.postMessage({type: 'complete', reason: 'All epochs finished'})
+        }
+        return;
+    }
+    const batch = batchResult.value;
+    const { x: X_batch, y: Y_batch } = batch;
+    const {loss_fn, l_rate, epochs, batch_size, multiClass} = params
+     
+
+    model.zeroGrad();
+    const Y_pred = model.forward(X_batch);
+    const loss = loss_fn(Y_pred, Y_batch);
+    loss.backward();
+
+    const modelParams = model.parameters();
+    
+    for (const p of modelParams) {
+        if (!p.grad || p.data.length !== p.grad.length) {
+            console.warn(`Skipping update for parameter due to missing/mismatched gradient. Param shape: ${p.shape}`);
+            continue;
+        }
+
+        let hasInvalidGrad = false;
+        for (const gradVal of p.grad) {
+            if (isNaN(gradVal) || !isFinite(gradVal)) {
+                console.warn("Invalid gradient found. halting update for this batch", p);
+                hasInvalidGrad = true;
+                break;
+            }
+        }
+        if(hasInvalidGrad) continue;
+
+        for (let j=0; j<p.data.length; j++) {
+            if (j < p.grad.length) {
+                p.data[j] -= l_rate * p.grad[j]!;
+            }
+        }
+    }
+
+    const iterEndTime = performance.now();
+    const iterTime = iterEndTime - iterStartTime;
+
+    assert(model instanceof Sequential, ()=>`Model is not an instance of sequential.`)
+    let accuracy = multiClass ? calcMultiClassAccuracy(Y_pred, Y_batch) : calcBinaryAccuracy(Y_pred, Y_batch);
+
+    const [sampleX, sampleY_label] = getActSample(batch);
+    
+    const rawLayerOutputs = model.getLayerOutputs(sampleX).map(val => ({
+        Zdata: val['Z']?.data.buffer,
+        Zshape: val['Z']?.shape,
+        Adata: val['A']?.data.buffer,
+        Ashape: val['A']?.shape
+    }));
+
+    const transferableBuffersSet = new Set<ArrayBuffer>();
+    rawLayerOutputs.forEach(layer => {
+        if (layer.Zdata) transferableBuffersSet.add(layer.Zdata);
+        if (layer.Adata) transferableBuffersSet.add(layer.Adata);
+    });
+    transferableBuffersSet.add(sampleX.data.buffer);
+    const transferableBuffers = Array.from(transferableBuffersSet);
+
+    messenger.postMessage({
+        type: 'batchEnd',
+        epoch: currentEpoch,
+        batch_idx: iteration,
+        loss: loss.data[0],
+        accuracy: accuracy,
+        iterTime: iterTime,
+        visData: {
+            sampleX: {
+                data: sampleX.data.buffer,
+                shape: sampleX.shape
+            },
+            sampleY_label: sampleY_label,
+            layerOutputs: rawLayerOutputs
+        }
+    }, transferableBuffers);
 }
